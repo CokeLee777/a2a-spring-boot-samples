@@ -1,0 +1,4 @@
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'io.github.a2asdk:a2a-java-sdk-client:1.0.0.Alpha3'
+}

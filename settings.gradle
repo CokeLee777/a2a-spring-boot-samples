@@ -1,1 +1,4 @@
 rootProject.name = 'a2a-examples'
+
+include 'a2a-client'
+include 'a2a-server'
