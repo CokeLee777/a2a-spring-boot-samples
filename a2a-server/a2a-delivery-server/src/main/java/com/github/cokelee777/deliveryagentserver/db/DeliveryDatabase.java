@@ -1,6 +1,7 @@
-package com.github.cokelee777.a2aserver.db;
+package com.github.cokelee777.deliveryagentserver.db;
 
 import java.util.Map;
+import java.util.Optional;
 
 public class DeliveryDatabase {
 
@@ -25,7 +26,11 @@ public class DeliveryDatabase {
         );
     }
 
-    private record DeliveryInfo(
+    public static Optional<DeliveryInfo> findById(String trackingNumber) {
+        return Optional.ofNullable(DELIVERIES.get(trackingNumber));
+    }
+
+    public record DeliveryInfo(
             String trackingNumber,
             String status,
             String detail,

@@ -1,0 +1,5 @@
+server:
+  port: 8083
+
+delivery-agent:
+  order-agent-url: http://localhost:8082

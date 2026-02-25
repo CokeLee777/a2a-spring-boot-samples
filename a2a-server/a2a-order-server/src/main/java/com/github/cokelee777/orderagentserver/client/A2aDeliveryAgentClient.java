@@ -1,49 +1,52 @@
-package com.github.cokelee777.a2aclient;
+package com.github.cokelee777.orderagentserver.client;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 import io.a2a.client.Client;
 import io.a2a.client.ClientEvent;
-import io.a2a.client.MessageEvent;
 import io.a2a.client.TaskEvent;
-import io.a2a.client.TaskUpdateEvent;
 import io.a2a.client.config.ClientConfig;
 import io.a2a.client.http.A2ACardResolver;
 import io.a2a.client.http.A2AHttpClient;
 import io.a2a.client.http.A2AHttpClientFactory;
 import io.a2a.client.transport.jsonrpc.JSONRPCTransport;
 import io.a2a.client.transport.jsonrpc.JSONRPCTransportConfig;
-import io.a2a.spec.*;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import io.a2a.spec.AgentCard;
+import io.a2a.spec.Message;
+import io.a2a.spec.Task;
+import io.a2a.spec.TextPart;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
-@RestController
-public class A2aClientController {
+/**
+ * A2A 프로토콜을 사용해 배송 에이전트에 메시지를 보내 배송 상태를 조회합니다.
+ */
+@Component
+public class A2aDeliveryAgentClient {
 
-    private static final String ORDER_AGENT_URL = "http://localhost:8082";
-    private static final String DELIVERY_AGENT_URL = "http://localhost:8083";
-    private static final String DELIVERY_AGENT_CARD_PATH = "/.well-known/delivery-agent-card.json";
-    private static final String ORDER_AGENT_CARD_PATH = "/.well-known/order-agent-card.json";
+    private static final String INTERNAL_MESSAGE_PREFIX = "[A2A-INTERNAL] delivery-status ";
+    private static final Pattern STATUS_LINE = Pattern.compile("status:(.+)");
 
-    @GetMapping("/api/delivery")
-    public String trackDelivery(@RequestParam String trackingNumber) {
-        return sendRequest(DELIVERY_AGENT_URL, DELIVERY_AGENT_CARD_PATH, trackingNumber + " 배송 조회해줘");
+    private final String deliveryAgentBaseUrl;
+    private final String deliveryAgentCardPath = "/.well-known/delivery-agent-card.json";
+
+    public A2aDeliveryAgentClient(
+            @Value("${order-agent.delivery-agent-url:http://localhost:8083}") String deliveryAgentBaseUrl) {
+        this.deliveryAgentBaseUrl = deliveryAgentBaseUrl;
     }
 
-    @GetMapping("/api/order/cancel")
-    public String cancelOrder(@RequestParam String orderNumber) {
-        return sendRequest(ORDER_AGENT_URL, ORDER_AGENT_CARD_PATH, orderNumber + " 주문 취소해줘");
-    }
-
-    private String sendRequest(String serverUrl, String agentCardPath, String text) {
+    /**
+     * 배송 에이전트에 A2A sendMessage로 배송 상태를 조회합니다. 주문 취소 가능 여부 판단에 사용합니다.
+     */
+    public DeliveryStatusResponse getDeliveryStatus(String trackingNumber) {
         try {
             A2AHttpClient httpClient = A2AHttpClientFactory.create();
-            AgentCard agentCard = new A2ACardResolver(httpClient, serverUrl, null, agentCardPath)
+            AgentCard agentCard = new A2ACardResolver(httpClient, deliveryAgentBaseUrl, null, deliveryAgentCardPath)
                     .getAgentCard();
 
             CompletableFuture<String> resultFuture = new CompletableFuture<>();
@@ -63,15 +66,9 @@ public class A2aClientController {
                                 );
                             }
                             resultFuture.complete(sb.toString());
-                        } else if (event instanceof MessageEvent messageEvent) {
-                            resultFuture.complete("Message: " + messageEvent.getMessage());
-                        } else if (event instanceof TaskUpdateEvent taskUpdateEvent) {
-                            resultFuture.complete("TaskUpdate: " + taskUpdateEvent.getTask());
                         }
                     }
             );
-
-            Consumer<Throwable> errorHandler = resultFuture::completeExceptionally;
 
             ClientConfig clientConfig = new ClientConfig.Builder()
                     .setAcceptedOutputModes(List.of("text"))
@@ -82,21 +79,28 @@ public class A2aClientController {
                     .clientConfig(clientConfig)
                     .withTransport(JSONRPCTransport.class, new JSONRPCTransportConfig())
                     .addConsumers(consumers)
-                    .streamingErrorHandler(errorHandler)
                     .build()) {
+                String internalMessage = INTERNAL_MESSAGE_PREFIX + trackingNumber;
                 Message userMessage = Message.builder()
                         .role(Message.Role.ROLE_USER)
-                        .parts(List.of(new TextPart(text)))
+                        .parts(List.of(new TextPart(internalMessage)))
                         .build();
-
                 client.sendMessage(userMessage);
-            } catch (A2AClientException e) {
-                throw e;
             }
 
-            return resultFuture.get(10, TimeUnit.SECONDS);
+            String responseText = resultFuture.get(10, TimeUnit.SECONDS);
+            if (responseText == null || responseText.isBlank()) {
+                return null;
+            }
+            Matcher m = STATUS_LINE.matcher(responseText.trim());
+            if (m.find()) {
+                return new DeliveryStatusResponse(trackingNumber, m.group(1).trim(), null);
+            }
+            return null;
         } catch (Exception e) {
-            return "Error: " + e.getMessage();
+            return null;
         }
     }
+
+    public record DeliveryStatusResponse(String trackingNumber, String status, String detail) {}
 }

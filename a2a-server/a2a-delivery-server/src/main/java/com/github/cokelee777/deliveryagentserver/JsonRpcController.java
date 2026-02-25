@@ -1,9 +1,9 @@
-package com.github.cokelee777.a2aserver;
+package com.github.cokelee777.deliveryagentserver;
 
 import java.util.List;
 import java.util.UUID;
 
-import com.github.cokelee777.a2aserver.executor.SkillExecutor;
+import com.github.cokelee777.deliveryagentserver.executor.SkillExecutor;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -74,7 +74,7 @@ public class JsonRpcController {
                 return executor.execute(userText);
             }
         }
-        return "요청을 처리할 수 있는 스킬을 찾을 수 없습니다. 운송장번호(TRACK-) 또는 주문번호(ORD-)를 포함해 주세요.";
+        return "배송 조회는 운송장번호(TRACK-)를 포함해 주세요. 예: TRACK-1001 배송 조회해줘";
     }
 
     private String extractText(JsonObject params) {

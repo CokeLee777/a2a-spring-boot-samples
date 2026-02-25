@@ -1,4 +1,4 @@
-package com.github.cokelee777.a2aserver.executor;
+package com.github.cokelee777.orderagentserver.executor;
 
 public interface SkillExecutor {
 

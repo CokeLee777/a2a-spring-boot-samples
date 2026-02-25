@@ -1,6 +1,7 @@
-package com.github.cokelee777.a2aserver.db;
+package com.github.cokelee777.orderagentserver.db;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class OrderDatabase {
@@ -40,7 +41,17 @@ public class OrderDatabase {
         );
     }
 
-    record OrderInfo(
+    public static Optional<OrderInfo> findByOrderNumber(String orderNumber) {
+        return Optional.ofNullable(ORDERS.get(orderNumber));
+    }
+
+    public static Optional<OrderInfo> findByTrackingNumber(String trackingNumber) {
+        return ORDERS.values().stream()
+                .filter(o -> trackingNumber.equals(o.trackingNumber()))
+                .findFirst();
+    }
+
+    public record OrderInfo(
             String orderNumber,
             String status,
             String productName,
