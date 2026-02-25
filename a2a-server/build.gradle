@@ -1,4 +1,5 @@
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'io.github.a2asdk:a2a-java-sdk-server-common:1.0.0.Alpha3'
+    implementation 'io.github.a2asdk:a2a-java-sdk-jsonrpc-common:1.0.0.Alpha3'
 }
