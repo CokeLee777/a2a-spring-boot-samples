@@ -1,4 +1,4 @@
-rootProject.name = 'a2a-examples'
+rootProject.name = 'a2a-spring-boot-samples'
 
 include 'a2a-client'
 include 'a2a-server'
