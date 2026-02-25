@@ -1,5 +1,15 @@
+ext {
+    springAiVersion = "1.1.2"
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+}
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.ai:spring-ai-openai:1.1.2'
+    implementation "org.springframework.ai:spring-ai-openai"
     implementation 'io.github.a2asdk:a2a-java-sdk-client:1.0.0.Alpha3'
 }

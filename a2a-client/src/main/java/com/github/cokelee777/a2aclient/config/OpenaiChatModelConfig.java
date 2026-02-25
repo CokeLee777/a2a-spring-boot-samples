@@ -8,19 +8,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Spring Boot 4와 Spring AI 1.0 autoconfigure가 호환되지 않아
- * (RestClientAutoConfiguration 미존재) ChatModel 빈을 수동 등록합니다.
- */
 @Configuration
-public class OpenAiChatModelConfig {
+public class OpenaiChatModelConfig {
 
     @Bean
     public ChatModel chatModel(
             @Value("${spring.ai.openai.api-key:}") String apiKey,
-            @Value("${spring.ai.openai.base-url:https://api.openai.com}") String baseUrl,
-            @Value("${spring.ai.openai.chat.options.model:gpt-4o-mini}") String model,
-            @Value("${spring.ai.openai.chat.options.temperature:0.2}") double temperature) {
+            @Value("${spring.ai.openai.base-url:https://generativelanguage.googleapis.com/v1beta/openai/}") String baseUrl,
+            @Value("${spring.ai.openai.chat.options.model:gemini-2.5-flash-lite}") String model,
+            @Value("${spring.ai.openai.chat.options.temperature:0.7}") double temperature) {
         OpenAiApi openAiApi = OpenAiApi.builder()
                 .apiKey(apiKey)
                 .baseUrl(baseUrl)

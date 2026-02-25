@@ -32,8 +32,8 @@ public class AgentInvokerService {
     private final String deliveryAgentUrl;
 
     public AgentInvokerService(
-            @Value("${a2a.order-agent-url:http://localhost:8082}") String orderAgentUrl,
-            @Value("${a2a.delivery-agent-url:http://localhost:8083}") String deliveryAgentUrl) {
+            @Value("${a2a.order-agent-url:http://localhost:8081}") String orderAgentUrl,
+            @Value("${a2a.delivery-agent-url:http://localhost:8082}") String deliveryAgentUrl) {
         this.orderAgentUrl = orderAgentUrl;
         this.deliveryAgentUrl = deliveryAgentUrl;
     }
