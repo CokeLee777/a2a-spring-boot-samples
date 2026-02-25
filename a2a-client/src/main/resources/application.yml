@@ -1,2 +1,19 @@
 server:
   port: 8081
+
+# LLM: OpenAI API 또는 OpenAI 호환 엔드포인트(Ollama 등)
+# API 키 없이 Ollama 사용 시 base-url만 설정하고 api-key는 빈 값 가능
+spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:gpt-4o-mini}
+          temperature: 0.2
+
+# A2A 에이전트 서버 URL (order: 8082, delivery: 8083)
+a2a:
+  order-agent-url: http://localhost:8082
+  delivery-agent-url: http://localhost:8083

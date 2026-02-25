@@ -7,7 +7,7 @@ Spring Boot samples using the Agent2Agent (A2A) Protocol
 |------|------|------|
 | **a2a-server/a2a-order-server** | 8082 | 주문 취소 에이전트 (ORD-* 처리) |
 | **a2a-server/a2a-delivery-server** | 8083 | 배송 조회 에이전트 (TRACK-* 처리) |
-| **a2a-client** | 8081 | 두 에이전트를 호출하는 클라이언트 |
+| **a2a-client** | 8081 | 진입점 + LLM 의도 분석 → 해당 에이전트 호출 |
 
 ## 에이전트 간 통신 (A2A Java SDK)
 
@@ -22,5 +22,27 @@ Spring Boot samples using the Agent2Agent (A2A) Protocol
 2. Delivery Agent 실행: `./gradlew :a2a-server:a2a-delivery-server:bootRun` (별도 터미널)
 3. Client 실행: `./gradlew :a2a-client:bootRun` (별도 터미널)
 
+### 직접 호출 (기존)
 - 배송 조회: `http://localhost:8081/api/delivery?trackingNumber=TRACK-1001`
 - 주문 취소: `http://localhost:8081/api/order/cancel?orderNumber=ORD-1001`
+
+### 자유 문의 (LLM 라우팅)
+Client가 **Spring AI(OpenAI 호환)** 로 사용자 문의 의도를 분석한 뒤, 해당 A2A 에이전트를 호출합니다.
+
+**필수 환경 변수 (Client 실행 전):**
+- `OPENAI_API_KEY`: OpenAI API 키 (또는 OpenAI 호환 서비스 키)
+- Ollama 등 로컬 서버 사용 시: `OPENAI_BASE_URL=http://localhost:11434/v1` 등으로 설정
+
+**요청 예:**
+```bash
+curl -X POST http://localhost:8081/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "ORD-1001 주문 취소해줘"}'
+```
+```bash
+curl -X POST http://localhost:8081/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "TRACK-1001 배송 어디쯤이야?"}'
+```
+
+**흐름:** 사용자 문의 → LLM 의도/엔티티 분석 → Order/Delivery 에이전트 A2A 호출 → 결과 반환
