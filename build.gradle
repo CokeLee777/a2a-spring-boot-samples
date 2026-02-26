@@ -3,6 +3,12 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.7' apply false
 }
 
+ext {
+    springAiVersion = '1.1.2'
+    a2aVersion = '1.0.0.Alpha3'
+    gsonVersion = '2.13.2'
+}
+
 subprojects {
     apply plugin: 'java'
     apply plugin: 'org.springframework.boot'
@@ -27,7 +33,21 @@ subprojects {
         mavenCentral()
     }
 
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+        }
+        dependencies {
+            dependency "io.github.a2asdk:a2a-java-sdk-client:${a2aVersion}"
+            dependency "io.github.a2asdk:a2a-java-sdk-server-common:${a2aVersion}"
+            dependency "io.github.a2asdk:a2a-java-sdk-jsonrpc-common:${a2aVersion}"
+        }
+    }
+
     dependencies {
+        // Spring AI 등 다른 BOM이 Gson을 2.10.1로 끌어내림 → SDK(Strictness) 위해 2.10+ 유지
+        implementation "com.google.code.gson:gson:${gsonVersion}"
+
         compileOnly 'org.projectlombok:lombok'
         annotationProcessor 'org.projectlombok:lombok'
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
