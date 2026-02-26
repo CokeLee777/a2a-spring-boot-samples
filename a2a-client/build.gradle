@@ -1,5 +1,6 @@
 ext {
     springAiVersion = "1.1.2"
+    a2aVersion = "1.0.0.Alpha3"
 }
 
 dependencyManagement {
@@ -11,5 +12,6 @@ dependencyManagement {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation "org.springframework.ai:spring-ai-openai"
-    implementation 'io.github.a2asdk:a2a-java-sdk-client:1.0.0.Alpha3'
+    implementation "io.github.a2asdk:a2a-java-sdk-client:${a2aVersion}"
+    implementation 'com.google.code.gson:gson:2.11.0'
 }
