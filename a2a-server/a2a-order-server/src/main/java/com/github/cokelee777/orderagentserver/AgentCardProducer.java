@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
 public class AgentCardProducer {
 
     @Bean
-    public AgentCard orderAgentCard(@Value("${server.port:8081}") int serverPort) {
+    public AgentCard orderAgentCard(@Value("${server.port}") int serverPort) {
         return AgentCard.builder()
                 .name("Order Cancellability Check Agent")
                 .description("주문 취소 가능 여부를 조회하는 에이전트")

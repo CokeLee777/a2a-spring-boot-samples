@@ -14,7 +14,7 @@ import java.util.List;
 public class AgentCardProducer {
 
     @Bean
-    public AgentCard deliveryAgentCard(@Value("${server.port:8082}") int serverPort) {
+    public AgentCard deliveryAgentCard(@Value("${server.port}") int serverPort) {
         return AgentCard.builder()
                 .name("Delivery Tracking Agent")
                 .description("배송 정보를 제공하는 에이전트")

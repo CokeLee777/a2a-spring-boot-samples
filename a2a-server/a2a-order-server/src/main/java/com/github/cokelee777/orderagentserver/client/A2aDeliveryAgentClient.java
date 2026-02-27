@@ -36,7 +36,7 @@ public class A2aDeliveryAgentClient {
     private final String deliveryAgentCardPath = "/.well-known/delivery-agent-card.json";
 
     public A2aDeliveryAgentClient(
-            @Value("${order-agent.delivery-agent-url:http://localhost:8082}") String deliveryAgentBaseUrl) {
+            @Value("${order-agent.delivery-agent-url}") String deliveryAgentBaseUrl) {
         this.deliveryAgentBaseUrl = deliveryAgentBaseUrl;
     }
 

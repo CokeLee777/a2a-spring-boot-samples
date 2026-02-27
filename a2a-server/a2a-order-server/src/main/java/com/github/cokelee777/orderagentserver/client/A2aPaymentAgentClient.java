@@ -35,7 +35,7 @@ public class A2aPaymentAgentClient {
     private final String paymentAgentCardPath = "/.well-known/payment-agent-card.json";
 
     public A2aPaymentAgentClient(
-            @Value("${order-agent.payment-agent-url:http://localhost:8083}") String paymentAgentBaseUrl) {
+            @Value("${order-agent.payment-agent-url}") String paymentAgentBaseUrl) {
         this.paymentAgentBaseUrl = paymentAgentBaseUrl;
     }
 
