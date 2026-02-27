@@ -78,7 +78,7 @@ Delivery Agent는 해당 응답을 파싱하여 배송 상태와 함께 주문 �
 
 ## 자유 문의 (LLM 라우팅)
 
-Client는 Spring AI + Gemini를 사용하여\
+Client는 Spring AI + LLM을 사용하여\
 사용자 문의의 의도(intent)와 식별자를 분석한 뒤, 해당 A2A 에이전트를
 호출합니다.
 
@@ -91,20 +91,7 @@ Client는 Spring AI + Gemini를 사용하여\
 
 ## 필수 환경 변수 (Client 실행 전)
 
--   `GEMINI_API_KEY`: Google Gemini API 키
-
-### application.yml 예시
-
-``` yaml
-spring:
-  ai:
-    gemini:
-      api-key: ${GEMINI_API_KEY}
-      chat:
-        options:
-          model: gemini-1.5-pro
-          temperature: 0.0
-```
+- `OPENAI_API_KEY`: OPENAI API 키(OpenAI, Gemini 등)
 
 ## 요청 예
 
@@ -124,7 +111,7 @@ curl -X POST http://localhost:8080/api/chat   -H "Content-Type: application/json
 
     사용자 문의
        ↓
-    Gemini (의도 + 식별자 추출)
+    LLM (의도 + 식별자 추출)
        ↓
     A2A Client 라우팅
        ↓
