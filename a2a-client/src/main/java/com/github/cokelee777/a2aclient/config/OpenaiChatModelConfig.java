@@ -13,7 +13,7 @@ public class OpenaiChatModelConfig {
 
     @Bean
     public ChatModel chatModel(
-            @Value("${spring.ai.openai.api-key:}") String apiKey,
+            @Value("${spring.ai.openai.api-key}") String apiKey,
             @Value("${spring.ai.openai.base-url:https://generativelanguage.googleapis.com/v1beta/openai/}") String baseUrl,
             @Value("${spring.ai.openai.chat.options.model:gemini-2.5-flash-lite}") String model,
             @Value("${spring.ai.openai.chat.options.temperature:0.7}") double temperature) {
