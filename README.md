@@ -14,26 +14,29 @@ Spring Boot samples using the Agent2Agent (A2A) Protocol
 
 에이전트 간에는 **A2A 프로토콜**로만 통신합니다. 각 에이전트에 `a2a-java-sdk-client`를 넣고, 상대 에이전트의 Agent Card를 resolve한 뒤 `Client.sendMessage()`로 메시지를 보내고, 응답 Task의 artifact 텍스트를 파싱해 사용합니다.
 
+에이전트가 다른 에이전트를 호출할 때는 `Message.Role.ROLE_AGENT`를 사용합니다. 수신 에이전트는 JSON body의 `role` 필드를 읽어 `isInternalCall` 여부를 판단하고, 내부/외부 호출에 따라 다른 응답을 반환합니다.
+
 ### 주문 취소 가능 여부 확인 시
 
 Order Agent는 다음 두 에이전트를 **병렬 호출**합니다:
 
-- **Delivery Agent**
-    - `[A2A-INTERNAL] delivery-status TRACK-xxx`
+- **Delivery Agent** (`Message.Role.ROLE_AGENT`, 메시지: `TRACK-xxx`)
     - 배송 상태가 `배송중` 또는 `배송완료`이면 취소 불가
+    - 응답: `status:배송중`
 
-- **Payment Agent**
-    - `[A2A-INTERNAL] payment-status ORD-xxx`
+- **Payment Agent** (`Message.Role.ROLE_AGENT`, 메시지: `ORD-xxx`)
     - 환불 불가 상태이면 취소 불가
+    - 응답: `refundEligible:true|false`
 
 두 결과를 종합하여 최종 취소 가능 여부를 판단합니다.
 
 ## 배송 조회 시
 
-Delivery Agent는 주문 정보를 함께 보여주기 위해\
-Order Agent에 내부 A2A 메시지를 보냅니다.
+Delivery Agent는 주문 정보를 함께 보여주기 위해
+Order Agent에 `Message.Role.ROLE_AGENT`로 운송장번호를 전송합니다.
 
-    [A2A-INTERNAL] order-info TRACK-xxx
+    메시지 텍스트: TRACK-xxx
+    role: ROLE_AGENT
 
 Order Agent는 운송장번호로 주문을 조회한 뒤, 다음과 같은 구조의 텍스트
 응답을 반환합니다:
@@ -45,8 +48,6 @@ Order Agent는 운송장번호로 주문을 조회한 뒤, 다음과 같은 구�
 Delivery Agent는 해당 응답을 파싱하여 배송 상태와 함께 주문 정보를
 결합해 최종 응답을 생성합니다.
 
-
-## 실행 방법
 
 ## 실행 방법
 
@@ -126,4 +127,6 @@ curl -X POST http://localhost:8080/api/chat   -H "Content-Type: application/json
 -   LLM은 실제 취소를 실행하지 않음
 -   Order Agent가 취소 가능 여부만 판단
 -   에이전트 간 통신은 HTTP 직접 호출이 아닌 **A2A 프로토콜**
+-   내부 에이전트 호출 시 `Message.Role.ROLE_AGENT` 사용 (문자열 접두사 방식 대비 보안 강화)
 -   내부 병렬 호출을 통한 마이크로 에이전트 협력 구조
+-   타임아웃은 `a2a.client.timeout-seconds` 프로퍼티로 중앙화

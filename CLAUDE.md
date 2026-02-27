@@ -43,17 +43,17 @@ A multi-module Spring Boot project demonstrating the **Agent-to-Agent (A2A) Prot
 ```
 User → A2A Client (8080) → [LLM intent extraction] → Order Agent (8081)
                                                     → Delivery Agent (8082)
-                                                          ↕ A2A-INTERNAL
+                                                          ↕ ROLE_AGENT
                                                     Payment Agent (8083)
 ```
 
-- **Client → Agents:** Standard A2A Protocol calls with natural language messages
-- **Agent → Agent:** Prefixed internal messages, e.g. `[A2A-INTERNAL] delivery-status TRACK-xxx`
-- **Parallel calls:** Order Agent calls Delivery + Payment Agents concurrently with a 12-second timeout
+- **Client → Agents:** Standard A2A Protocol calls with `Message.Role.ROLE_USER` and natural language messages
+- **Agent → Agent:** `Message.Role.ROLE_AGENT` with just the identifier (e.g. `TRACK-xxx`, `ORD-xxx`). Server reads `role` from JSON body to set `isInternalCall` flag.
+- **Parallel calls:** Order Agent calls Delivery + Payment Agents concurrently with a configurable timeout (`a2a.client.timeout-seconds`)
 
 ### Key Patterns
 
-**Skill Executors** (`*SkillExecutor.java`): Each agent implements `A2aSkillExecutor` to handle incoming A2A requests. Internal vs. external messages are distinguished by the `[A2A-INTERNAL]` prefix.
+**Skill Executors** (`*SkillExecutor.java`): Each agent implements `SkillExecutor` to handle incoming A2A requests. Internal vs. external calls are distinguished by the `isInternalCall` boolean (derived from `Message.Role.ROLE_AGENT` in the request body), **not** string prefixes.
 
 **Agent Clients** (`A2a*Client.java`): Typed HTTP clients that wrap A2A Protocol calls to other agents.
 
