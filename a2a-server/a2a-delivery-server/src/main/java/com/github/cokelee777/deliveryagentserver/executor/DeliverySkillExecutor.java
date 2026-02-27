@@ -7,9 +7,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class DeliverySkillExecutor implements SkillExecutor {
 
-    /** A2A 내부 요청: 배송 상태만 반환 (에이전트 간 통신용) */
-    private static final String A2A_INTERNAL_PREFIX = "[A2A-INTERNAL] delivery-status ";
-
     private final A2aOrderAgentClient orderAgentClient;
 
     public DeliverySkillExecutor(A2aOrderAgentClient orderAgentClient) {
@@ -17,11 +14,9 @@ public class DeliverySkillExecutor implements SkillExecutor {
     }
 
     @Override
-    public boolean canHandle(String userMessage) {
-        if (userMessage != null && userMessage.startsWith(A2A_INTERNAL_PREFIX)) {
-            return true;
-        }
-        for (String word : userMessage.split("\\s+")) {
+    public boolean canHandle(String message, boolean isInternalCall) {
+        if (message == null) return false;
+        for (String word : message.split("\\s+")) {
             if (word.startsWith("TRACK-")) {
                 return true;
             }
@@ -30,15 +25,14 @@ public class DeliverySkillExecutor implements SkillExecutor {
     }
 
     @Override
-    public String execute(String userMessage) {
-        if (userMessage != null && userMessage.startsWith(A2A_INTERNAL_PREFIX)) {
-            String trackingNumber = userMessage.substring(A2A_INTERNAL_PREFIX.length()).trim();
-            return DeliveryDatabase.findById(trackingNumber)
+    public String execute(String message, boolean isInternalCall) {
+        if (isInternalCall) {
+            return DeliveryDatabase.findById(message.trim())
                     .map(info -> "status:" + info.status())
                     .orElse("status:NOT_FOUND");
         }
 
-        String trackingNumber = extractTrackingNumber(userMessage);
+        String trackingNumber = extractTrackingNumber(message);
         String baseResult = DeliveryDatabase.lookup(trackingNumber);
 
         var orderInfo = orderAgentClient.getOrderInfo(trackingNumber);

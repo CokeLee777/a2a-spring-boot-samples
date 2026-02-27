@@ -3,3 +3,7 @@ server:
 
 delivery-agent:
   order-agent-url: http://localhost:8081
+
+a2a:
+  client:
+    timeout-seconds: 10

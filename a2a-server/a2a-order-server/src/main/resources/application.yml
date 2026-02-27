@@ -4,3 +4,7 @@ server:
 order-agent:
   delivery-agent-url: http://localhost:8082
   payment-agent-url: http://localhost:8083
+
+a2a:
+  client:
+    timeout-seconds: 10

@@ -13,3 +13,5 @@ spring:
 a2a:
   order-agent-url: http://localhost:8081
   delivery-agent-url: http://localhost:8082
+  client:
+    timeout-seconds: 15

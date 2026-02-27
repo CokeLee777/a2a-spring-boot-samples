@@ -10,12 +10,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.a2a.jsonrpc.common.json.JsonProcessingException;
 import io.a2a.jsonrpc.common.json.JsonUtil;
-import io.a2a.spec.A2AMethods;
-import io.a2a.spec.Artifact;
-import io.a2a.spec.Task;
-import io.a2a.spec.TaskState;
-import io.a2a.spec.TaskStatus;
-import io.a2a.spec.TextPart;
+import io.a2a.spec.*;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,8 +38,10 @@ public class JsonRpcController {
 
         JsonObject params = request.getAsJsonObject("params");
         String userText = extractText(params);
+        String role = extractRole(params);
+        boolean isInternalCall = Message.Role.ROLE_AGENT.name().equals(role);
 
-        String resultText = routeToExecutor(userText);
+        String resultText = routeToExecutor(userText, isInternalCall);
 
         Task task = Task.builder()
                 .id(UUID.randomUUID().toString())
@@ -68,10 +65,10 @@ public class JsonRpcController {
         return ResponseEntity.ok(response.toString());
     }
 
-    private String routeToExecutor(String userText) {
+    private String routeToExecutor(String userText, boolean isInternalCall) {
         for (SkillExecutor executor : skillExecutors) {
-            if (executor.canHandle(userText)) {
-                return executor.execute(userText);
+            if (executor.canHandle(userText, isInternalCall)) {
+                return executor.execute(userText, isInternalCall);
             }
         }
         return "배송 조회는 운송장번호(TRACK-)를 포함해 주세요. 예: TRACK-1001 배송 조회해줘";
@@ -87,6 +84,14 @@ public class JsonRpcController {
             }
         }
         return "";
+    }
+
+    private String extractRole(JsonObject params) {
+        JsonObject message = params.getAsJsonObject("message");
+        if (message != null && message.has("role")) {
+            return message.get("role").getAsString();
+        }
+        return "user";
     }
 
     private String buildErrorResponse(JsonElement requestId, int code, String message) {

@@ -31,6 +31,9 @@ public class AgentInvokerService {
     private final String orderAgentUrl;
     private final String deliveryAgentUrl;
 
+    @Value("${a2a.client.timeout-seconds:15}")
+    private int timeoutSeconds;
+
     public AgentInvokerService(
             @Value("${a2a.order-agent-url}") String orderAgentUrl,
             @Value("${a2a.delivery-agent-url}") String deliveryAgentUrl) {
@@ -117,7 +120,7 @@ public class AgentInvokerService {
                 client.sendMessage(userMessage);
             }
 
-            return resultFuture.get(15, TimeUnit.SECONDS);
+            return resultFuture.get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (Exception e) {
             return "에이전트 호출 중 오류: " + e.getMessage();
         }

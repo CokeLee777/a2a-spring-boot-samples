@@ -1,2 +1,6 @@
 server:
   port: 8083
+
+a2a:
+  client:
+    timeout-seconds: 10

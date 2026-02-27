@@ -32,7 +32,7 @@ public class AgentCardProducer {
                                 .description("주문번호 기준 결제 상태 및 환불 가능 여부를 조회합니다.")
                                 .tags(List.of("payment", "refund", "order"))
                                 .examples(List.of(
-                                        "[A2A-INTERNAL] payment-status ORD-1001"
+                                        "ORD-1001 환불 가능 여부 확인"
                                 ))
                                 .build()
                 ))

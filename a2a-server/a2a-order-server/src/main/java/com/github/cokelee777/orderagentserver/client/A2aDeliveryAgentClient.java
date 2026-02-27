@@ -20,20 +20,24 @@ import io.a2a.spec.AgentCard;
 import io.a2a.spec.Message;
 import io.a2a.spec.Task;
 import io.a2a.spec.TextPart;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
  * A2A 프로토콜을 사용해 배송 에이전트에 메시지를 보내 배송 상태를 조회합니다.
  */
+@Slf4j
 @Component
 public class A2aDeliveryAgentClient {
 
-    private static final String INTERNAL_MESSAGE_PREFIX = "[A2A-INTERNAL] delivery-status ";
     private static final Pattern STATUS_LINE = Pattern.compile("status:(.+)");
 
     private final String deliveryAgentBaseUrl;
     private final String deliveryAgentCardPath = "/.well-known/delivery-agent-card.json";
+
+    @Value("${a2a.client.timeout-seconds:12}")
+    private int timeoutSeconds;
 
     public A2aDeliveryAgentClient(
             @Value("${order-agent.delivery-agent-url}") String deliveryAgentBaseUrl) {
@@ -80,15 +84,14 @@ public class A2aDeliveryAgentClient {
                     .withTransport(JSONRPCTransport.class, new JSONRPCTransportConfig())
                     .addConsumers(consumers)
                     .build()) {
-                String internalMessage = INTERNAL_MESSAGE_PREFIX + trackingNumber;
-                Message userMessage = Message.builder()
-                        .role(Message.Role.ROLE_USER)
-                        .parts(List.of(new TextPart(internalMessage)))
+                Message agentMessage = Message.builder()
+                        .role(Message.Role.ROLE_AGENT)
+                        .parts(List.of(new TextPart(trackingNumber)))
                         .build();
-                client.sendMessage(userMessage);
+                client.sendMessage(agentMessage);
             }
 
-            String responseText = resultFuture.get(10, TimeUnit.SECONDS);
+            String responseText = resultFuture.get(timeoutSeconds, TimeUnit.SECONDS);
             if (responseText == null || responseText.isBlank()) {
                 return null;
             }
@@ -98,6 +101,7 @@ public class A2aDeliveryAgentClient {
             }
             return null;
         } catch (Exception e) {
+            log.error("배송 에이전트 호출 실패 (trackingNumber={}): {}", trackingNumber, e.getMessage(), e);
             return null;
         }
     }

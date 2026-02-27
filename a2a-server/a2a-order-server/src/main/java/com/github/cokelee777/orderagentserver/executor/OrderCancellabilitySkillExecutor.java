@@ -8,13 +8,19 @@ import com.github.cokelee777.orderagentserver.client.A2aPaymentAgentClient;
 import com.github.cokelee777.orderagentserver.client.A2aDeliveryAgentClient.DeliveryStatusResponse;
 import com.github.cokelee777.orderagentserver.client.A2aPaymentAgentClient.PaymentStatusResponse;
 import com.github.cokelee777.orderagentserver.db.OrderDatabase;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class OrderCancellabilitySkillExecutor implements SkillExecutor {
 
     private final A2aDeliveryAgentClient deliveryAgentClient;
     private final A2aPaymentAgentClient paymentAgentClient;
+
+    @Value("${a2a.client.timeout-seconds:12}")
+    private int timeoutSeconds;
 
     public OrderCancellabilitySkillExecutor(A2aDeliveryAgentClient deliveryAgentClient,
                                             A2aPaymentAgentClient paymentAgentClient) {
@@ -23,7 +29,8 @@ public class OrderCancellabilitySkillExecutor implements SkillExecutor {
     }
 
     @Override
-    public boolean canHandle(String userMessage) {
+    public boolean canHandle(String userMessage, boolean isInternalCall) {
+        if (isInternalCall) return false;
         for (String word : userMessage.split("\\s+")) {
             if (word.startsWith("ORD-")) {
                 return true;
@@ -33,7 +40,7 @@ public class OrderCancellabilitySkillExecutor implements SkillExecutor {
     }
 
     @Override
-    public String execute(String userMessage) {
+    public String execute(String userMessage, boolean isInternalCall) {
         String orderNumber = extractOrderNumber(userMessage);
         var orderOpt = OrderDatabase.findByOrderNumber(orderNumber);
         if (orderOpt.isEmpty()) {
@@ -50,11 +57,11 @@ public class OrderCancellabilitySkillExecutor implements SkillExecutor {
                 : CompletableFuture.completedFuture(null);
 
         try {
-            PaymentStatusResponse paymentStatus = paymentFuture.get(12, TimeUnit.SECONDS);
-            DeliveryStatusResponse deliveryStatus = deliveryFuture.get(12, TimeUnit.SECONDS);
+            PaymentStatusResponse paymentStatus = paymentFuture.get(timeoutSeconds, TimeUnit.SECONDS);
+            DeliveryStatusResponse deliveryStatus = deliveryFuture.get(timeoutSeconds, TimeUnit.SECONDS);
 
             StringBuilder result = new StringBuilder();
-            result.append(String.format("[취소 가능 여부 조회 결과]\n주문번호: %s\n상품명: %s\n현재상태: %s\n", 
+            result.append(String.format("[취소 가능 여부 조회 결과]\n주문번호: %s\n상품명: %s\n현재상태: %s\n",
                     order.orderNumber(), order.productName(), order.status()));
 
             boolean cancellable = true;
@@ -82,6 +89,7 @@ public class OrderCancellabilitySkillExecutor implements SkillExecutor {
             return result.toString();
 
         } catch (Exception e) {
+            log.error("에이전트 병렬 호출 중 오류 (orderNumber={}): {}", orderNumber, e.getMessage(), e);
             return "에이전트 호출 중 오류: " + e.getMessage();
         }
     }
