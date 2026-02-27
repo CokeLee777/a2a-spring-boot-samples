@@ -55,9 +55,9 @@ public class ChatOrchestratorService {
         if (needOrder && needDelivery) {
             // A2A에 맞게 두 에이전트를 독립적으로 병렬 호출
             CompletableFuture<String> orderFuture = CompletableFuture.supplyAsync(() ->
-                    agentInvokerService.callOrderAgent(analysis.orderNumber() + " 주문 취소해줘"));
+                    agentInvokerService.callOrderAgent(analysis.orderNumber()));
             CompletableFuture<String> deliveryFuture = CompletableFuture.supplyAsync(() ->
-                    agentInvokerService.callDeliveryAgent(analysis.trackingNumber() + " 배송 조회해줘"));
+                    agentInvokerService.callDeliveryAgent(analysis.trackingNumber()));
 
             CompletableFuture<String> combined = orderFuture.thenCombine(deliveryFuture,
                     (orderResult, deliveryResult) -> orderResult + "\n\n---\n\n" + deliveryResult);
@@ -71,11 +71,11 @@ public class ChatOrchestratorService {
 
         StringBuilder response = new StringBuilder();
         if (needOrder) {
-            response.append(agentInvokerService.callOrderAgent(analysis.orderNumber() + " 주문 취소해줘"));
+            response.append(agentInvokerService.callOrderAgent(analysis.orderNumber()));
         }
         if (needDelivery) {
             if (!response.isEmpty()) response.append("\n\n---\n\n");
-            response.append(agentInvokerService.callDeliveryAgent(analysis.trackingNumber() + " 배송 조회해줘"));
+            response.append(agentInvokerService.callDeliveryAgent(analysis.trackingNumber()));
         }
 
         return !response.isEmpty() ? response.toString() : formatUnclearResponse();
@@ -84,11 +84,10 @@ public class ChatOrchestratorService {
     private String formatUnclearResponse() {
         try {
             var response = chatModel.call(new Prompt(new UserMessage(CLARIFY_PROMPT)));
-            if (response != null && response.getResult() != null && response.getResult().getOutput() != null) {
-                String content = response.getResult().getOutput().getText();
-                if (content != null && !content.isBlank()) {
-                    return content.trim();
-                }
+
+            String content = response.getResult().getOutput().getText();
+            if (content != null && !content.isBlank()) {
+                return content.trim();
             }
         } catch (Exception ignored) {
             // LLM 실패 시 기본 안내 문구 사용

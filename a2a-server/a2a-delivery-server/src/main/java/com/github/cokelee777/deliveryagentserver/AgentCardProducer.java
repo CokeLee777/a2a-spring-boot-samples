@@ -1,7 +1,5 @@
 package com.github.cokelee777.deliveryagentserver;
 
-import java.util.List;
-
 import io.a2a.spec.AgentCapabilities;
 import io.a2a.spec.AgentCard;
 import io.a2a.spec.AgentInterface;
@@ -9,6 +7,8 @@ import io.a2a.spec.AgentSkill;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 @Configuration
 public class AgentCardProducer {

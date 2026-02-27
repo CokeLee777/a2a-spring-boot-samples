@@ -74,7 +74,7 @@ public class JsonRpcController {
                 return executor.execute(userText);
             }
         }
-        return "주문 취소는 주문번호(ORD-)를 포함해 주세요. 예: ORD-1001 주문 취소해줘";
+        return "주문 취소 가능 여부 조회는 주문번호(ORD-)를 포함해 주세요. 예: ORD-1001 취소 가능한지 알려줘";
     }
 
     private String extractText(JsonObject params) {

@@ -15,13 +15,18 @@ public class QueryAnalysisService {
         사용자 문의에서 의도(intent)와 필요한 식별자를 추출하세요.
 
         가능한 의도:
-        - order_cancel: 주문 취소 (주문번호 ORD- 로 시작)
-        - delivery_track: 배송 조회 (운송장번호 TRACK- 로 시작)
-        - both: 주문 취소와 배송 조회를 모두 요청
+        - order_cancellability_check: 주문 취소 가능 여부 확인 (주문번호는 ORD- 로 시작)
+        - delivery_track: 배송 조회 (운송장번호는 TRACK- 로 시작)
+        - both: 주문 취소 가능 여부 확인과 배송 조회를 모두 요청
         - unclear: 위에 해당하지 않거나 식별자를 알 수 없음
 
+        중요:
+        - 실제 주문 취소 실행 요청이 아니라 "취소 가능 여부 확인" 요청만 order_cancellability_check 로 분류합니다.
+        - 주문번호가 없으면 order_cancellability_check 로 분류하지 않습니다.
+        - 운송장번호가 없으면 delivery_track 으로 분류하지 않습니다.
+
         응답은 반드시 아래 JSON 형식만 출력하세요. 다른 설명 없이 JSON만 출력합니다.
-        {"intent":"order_cancel|delivery_track|both|unclear","orderNumber":"ORD-1001 또는 null","trackingNumber":"TRACK-1001 또는 null"}
+        {"intent":"order_cancellability_check|delivery_track|both|unclear","orderNumber":"ORD-1001 또는 null","trackingNumber":"TRACK-1001 또는 null"}
         """;
 
     private final ChatModel chatModel;
@@ -40,9 +45,7 @@ public class QueryAnalysisService {
             String promptText = SYSTEM_PROMPT + "\n\n사용자 문의: " + userMessage;
             Prompt prompt = new Prompt(new UserMessage(promptText));
             var response = chatModel.call(prompt);
-            if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
-                return new IntentAnalysis(IntentAnalysis.INTENT_UNCLEAR, null, null);
-            }
+
             String content = response.getResult().getOutput().getText();
             if (content == null || content.isBlank()) {
                 return new IntentAnalysis(IntentAnalysis.INTENT_UNCLEAR, null, null);

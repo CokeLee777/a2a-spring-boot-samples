@@ -16,8 +16,8 @@ public class AgentCardProducer {
     @Bean
     public AgentCard orderAgentCard(@Value("${server.port:8081}") int serverPort) {
         return AgentCard.builder()
-                .name("Order Cancellation Agent")
-                .description("주문 취소를 처리하는 에이전트")
+                .name("Order Cancellability Check Agent")
+                .description("주문 취소 가능 여부를 조회하는 에이전트")
                 .version("1.0.0")
                 .capabilities(AgentCapabilities.builder()
                         .streaming(false)
@@ -27,14 +27,14 @@ public class AgentCardProducer {
                 .defaultOutputModes(List.of("text"))
                 .skills(List.of(
                         AgentSkill.builder()
-                                .id("cancel_order")
-                                .name("주문 취소")
-                                .description("주문번호로 주문을 취소합니다. 배송중/배송완료 상태에서는 취소할 수 없습니다.")
-                                .tags(List.of("order", "cancel", "refund"))
+                                .id("order_cancellability_check")
+                                .name("주문 취소 가능 여부 조회")
+                                .description("주문번호로 주문의 취소 가능 여부를 확인합니다. 배송 및 결제 상태를 종합적으로 체크합니다.")
+                                .tags(List.of("order", "cancellability", "check"))
                                 .examples(List.of(
-                                        "ORD-1001 주문 취소해줘",
-                                        "주문번호 ORD-2002 취소하고 싶어",
-                                        "ORD-3003 주문취소 가능해?"
+                                        "ORD-1001 취소 가능한지 알려줘",
+                                        "주문번호 ORD-2002 취소할 수 있어?",
+                                        "ORD-3003 주문 취소 가능 여부 확인해줘"
                                 ))
                                 .build()
                 ))

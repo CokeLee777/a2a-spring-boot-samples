@@ -25,8 +25,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class AgentInvokerService {
 
-    private static final String DELIVERY_AGENT_CARD_PATH = "/.well-known/delivery-agent-card.json";
     private static final String ORDER_AGENT_CARD_PATH = "/.well-known/order-agent-card.json";
+    private static final String DELIVERY_AGENT_CARD_PATH = "/.well-known/delivery-agent-card.json";
 
     private final String orderAgentUrl;
     private final String deliveryAgentUrl;
@@ -38,11 +38,35 @@ public class AgentInvokerService {
         this.deliveryAgentUrl = deliveryAgentUrl;
     }
 
-    public String callOrderAgent(String messageToSend) {
+    /**
+     * 주문 에이전트에 주문 취소 가능 여부를 확인하는 요청을 보낸다.
+     *
+     * <p>
+     * 전달받은 주문번호를 기반으로 "취소 가능 여부 확인" 메시지를 생성하여
+     * Order Agent(A2A 서버)에 요청을 전송한다.
+     * </p>
+     *
+     * @param orderNumber 취소 가능 여부를 확인할 주문 번호
+     * @return 주문 에이전트로부터 반환된 응답 문자열
+     */
+    public String callOrderAgent(String orderNumber) {
+        String messageToSend = String.format("%s 취소 가능 여부 확인", orderNumber);
         return sendRequest(orderAgentUrl, ORDER_AGENT_CARD_PATH, messageToSend);
     }
 
-    public String callDeliveryAgent(String messageToSend) {
+    /**
+     * 배송 에이전트에 배송 조회 요청을 보낸다.
+     *
+     * <p>
+     * 전달받은 운송장 번호를 기반으로 "배송 조회" 메시지를 생성하여
+     * Delivery Agent(A2A 서버)에 요청을 전송한다.
+     * </p>
+     *
+     * @param trackingNumber 조회할 운송장 번호
+     * @return 배송 에이전트로부터 반환된 응답 문자열
+     */
+    public String callDeliveryAgent(String trackingNumber) {
+        String messageToSend = String.format("%s 배송 조회", trackingNumber);
         return sendRequest(deliveryAgentUrl, DELIVERY_AGENT_CARD_PATH, messageToSend);
     }
 

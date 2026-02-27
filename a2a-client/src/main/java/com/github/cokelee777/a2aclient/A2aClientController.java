@@ -16,11 +16,11 @@ public class A2aClientController {
 
     @GetMapping("/api/delivery")
     public String trackDelivery(@RequestParam String trackingNumber) {
-        return agentInvokerService.callDeliveryAgent(trackingNumber + " 배송 조회해줘");
+        return agentInvokerService.callDeliveryAgent(trackingNumber);
     }
 
     @GetMapping("/api/order/cancel")
     public String cancelOrder(@RequestParam String orderNumber) {
-        return agentInvokerService.callOrderAgent(orderNumber + " 주문 취소해줘");
+        return agentInvokerService.callOrderAgent(orderNumber);
     }
 }
