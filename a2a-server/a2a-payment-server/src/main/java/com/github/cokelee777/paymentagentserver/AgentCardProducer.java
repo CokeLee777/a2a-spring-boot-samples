@@ -17,7 +17,7 @@ public class AgentCardProducer {
     public AgentCard paymentAgentCard(@Value("${server.port:8083}") int serverPort) {
         return AgentCard.builder()
                 .name("Payment Agent")
-                .description("결제·환불 상태를 조회하고, 주문 취소 시 환불 가능 여부를 판단하는 에이전트.")
+                .description("결제·환불 상태를 조회하고, 주문 취소 시 환불 가능 여부를 판단하는 에이전트")
                 .version("1.0.0")
                 .capabilities(AgentCapabilities.builder()
                         .streaming(false)

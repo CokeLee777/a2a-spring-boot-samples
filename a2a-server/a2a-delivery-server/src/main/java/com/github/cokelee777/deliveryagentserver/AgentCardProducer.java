@@ -17,7 +17,7 @@ public class AgentCardProducer {
     public AgentCard deliveryAgentCard(@Value("${server.port:8082}") int serverPort) {
         return AgentCard.builder()
                 .name("Delivery Tracking Agent")
-                .description("배송 상태를 조회하고 실시간 배송 정보를 제공하는 에이전트. 주문 에이전트와 연동하여 주문 정보를 함께 보여줍니다.")
+                .description("배송 정보를 제공하는 에이전트")
                 .version("1.0.0")
                 .capabilities(AgentCapabilities.builder()
                         .streaming(false)
