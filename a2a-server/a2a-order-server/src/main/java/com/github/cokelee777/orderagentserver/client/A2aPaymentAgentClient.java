@@ -18,6 +18,7 @@ import io.a2a.client.transport.jsonrpc.JSONRPCTransportConfig;
 import io.a2a.spec.AgentCard;
 import io.a2a.spec.Message;
 import io.a2a.spec.Task;
+import io.a2a.spec.TaskState;
 import io.a2a.spec.TextPart;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,9 +34,9 @@ public class A2aPaymentAgentClient {
     private static final Pattern REFUND_ELIGIBLE_LINE = Pattern.compile("refundEligible:(true|false)");
 
     private final String paymentAgentBaseUrl;
-    private final String paymentAgentCardPath = "/.well-known/payment-agent-card.json";
+    private volatile AgentCard paymentAgentCard;
 
-    @Value("${a2a.client.timeout-seconds:12}")
+    @Value("${a2a.client.timeout-seconds}")
     private int timeoutSeconds;
 
     public A2aPaymentAgentClient(
@@ -43,21 +44,34 @@ public class A2aPaymentAgentClient {
         this.paymentAgentBaseUrl = paymentAgentBaseUrl;
     }
 
+    private AgentCard resolveAgentCard() {
+        if (paymentAgentCard == null) {
+            synchronized (this) {
+                if (paymentAgentCard == null) {
+                    A2AHttpClient httpClient = A2AHttpClientFactory.create();
+                    paymentAgentCard = new A2ACardResolver(httpClient, paymentAgentBaseUrl, null).getAgentCard();
+                    log.info("Payment agent card resolved: {}", paymentAgentCard.name());
+                }
+            }
+        }
+        return paymentAgentCard;
+    }
+
     /**
      * 결제 에이전트에 A2A sendMessage로 해당 주문의 환불 가능 여부를 조회합니다.
      */
     public PaymentStatusResponse getPaymentStatus(String orderNumber) {
         try {
-            A2AHttpClient httpClient = A2AHttpClientFactory.create();
-            AgentCard agentCard = new A2ACardResolver(httpClient, paymentAgentBaseUrl, null, paymentAgentCardPath)
-                    .getAgentCard();
-
             CompletableFuture<String> resultFuture = new CompletableFuture<>();
 
             List<BiConsumer<ClientEvent, AgentCard>> consumers = List.of(
                     (event, card) -> {
                         if (event instanceof TaskEvent taskEvent) {
                             Task task = taskEvent.getTask();
+                            if (TaskState.TASK_STATE_FAILED.equals(task.status().state())) {
+                                resultFuture.complete(null);
+                                return;
+                            }
                             StringBuilder sb = new StringBuilder();
                             if (task.artifacts() != null) {
                                 task.artifacts().forEach(artifact ->
@@ -74,11 +88,11 @@ public class A2aPaymentAgentClient {
             );
 
             ClientConfig clientConfig = new ClientConfig.Builder()
-                    .setAcceptedOutputModes(List.of("text"))
+                    .setAcceptedOutputModes(List.of(TextPart.TEXT))
                     .build();
 
             try (Client client = Client
-                    .builder(agentCard)
+                    .builder(resolveAgentCard())
                     .clientConfig(clientConfig)
                     .withTransport(JSONRPCTransport.class, new JSONRPCTransportConfig())
                     .addConsumers(consumers)

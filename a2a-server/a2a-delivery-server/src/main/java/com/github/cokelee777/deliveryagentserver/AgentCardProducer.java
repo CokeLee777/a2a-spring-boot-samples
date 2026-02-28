@@ -1,9 +1,6 @@
 package com.github.cokelee777.deliveryagentserver;
 
-import io.a2a.spec.AgentCapabilities;
-import io.a2a.spec.AgentCard;
-import io.a2a.spec.AgentInterface;
-import io.a2a.spec.AgentSkill;
+import io.a2a.spec.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,8 +20,8 @@ public class AgentCardProducer {
                         .streaming(false)
                         .pushNotifications(false)
                         .build())
-                .defaultInputModes(List.of("text"))
-                .defaultOutputModes(List.of("text"))
+                .defaultInputModes(List.of(TextPart.TEXT))
+                .defaultOutputModes(List.of(TextPart.TEXT))
                 .skills(List.of(
                         AgentSkill.builder()
                                 .id("track_delivery")

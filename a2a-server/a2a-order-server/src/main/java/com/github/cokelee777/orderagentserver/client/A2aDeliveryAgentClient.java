@@ -19,6 +19,7 @@ import io.a2a.client.transport.jsonrpc.JSONRPCTransportConfig;
 import io.a2a.spec.AgentCard;
 import io.a2a.spec.Message;
 import io.a2a.spec.Task;
+import io.a2a.spec.TaskState;
 import io.a2a.spec.TextPart;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,9 +35,9 @@ public class A2aDeliveryAgentClient {
     private static final Pattern STATUS_LINE = Pattern.compile("status:(.+)");
 
     private final String deliveryAgentBaseUrl;
-    private final String deliveryAgentCardPath = "/.well-known/delivery-agent-card.json";
+    private volatile AgentCard deliveryAgentCard;
 
-    @Value("${a2a.client.timeout-seconds:12}")
+    @Value("${a2a.client.timeout-seconds}")
     private int timeoutSeconds;
 
     public A2aDeliveryAgentClient(
@@ -44,21 +45,34 @@ public class A2aDeliveryAgentClient {
         this.deliveryAgentBaseUrl = deliveryAgentBaseUrl;
     }
 
+    private AgentCard resolveAgentCard() {
+        if (deliveryAgentCard == null) {
+            synchronized (this) {
+                if (deliveryAgentCard == null) {
+                    A2AHttpClient httpClient = A2AHttpClientFactory.create();
+                    deliveryAgentCard = new A2ACardResolver(httpClient, deliveryAgentBaseUrl, null).getAgentCard();
+                    log.info("Delivery agent card resolved: {}", deliveryAgentCard.name());
+                }
+            }
+        }
+        return deliveryAgentCard;
+    }
+
     /**
      * 배송 에이전트에 A2A sendMessage로 배송 상태를 조회합니다. 주문 취소 가능 여부 판단에 사용합니다.
      */
     public DeliveryStatusResponse getDeliveryStatus(String trackingNumber) {
         try {
-            A2AHttpClient httpClient = A2AHttpClientFactory.create();
-            AgentCard agentCard = new A2ACardResolver(httpClient, deliveryAgentBaseUrl, null, deliveryAgentCardPath)
-                    .getAgentCard();
-
             CompletableFuture<String> resultFuture = new CompletableFuture<>();
 
             List<BiConsumer<ClientEvent, AgentCard>> consumers = List.of(
                     (event, card) -> {
                         if (event instanceof TaskEvent taskEvent) {
                             Task task = taskEvent.getTask();
+                            if (TaskState.TASK_STATE_FAILED.equals(task.status().state())) {
+                                resultFuture.complete(null);
+                                return;
+                            }
                             StringBuilder sb = new StringBuilder();
                             if (task.artifacts() != null) {
                                 task.artifacts().forEach(artifact ->
@@ -75,11 +89,11 @@ public class A2aDeliveryAgentClient {
             );
 
             ClientConfig clientConfig = new ClientConfig.Builder()
-                    .setAcceptedOutputModes(List.of("text"))
+                    .setAcceptedOutputModes(List.of(TextPart.TEXT))
                     .build();
 
             try (Client client = Client
-                    .builder(agentCard)
+                    .builder(resolveAgentCard())
                     .clientConfig(clientConfig)
                     .withTransport(JSONRPCTransport.class, new JSONRPCTransportConfig())
                     .addConsumers(consumers)

@@ -11,10 +11,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AgentCardController {
 
-    private final AgentCard paymentAgentCard;
+    private final AgentCard agentCard;
 
-    @GetMapping(value = "/.well-known/payment-agent-card.json", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<AgentCard> getPaymentAgentCard() {
-        return ResponseEntity.ok(paymentAgentCard);
+    @GetMapping(value = "/.well-known/agent-card.json", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<AgentCard> getAgentCard() {
+        return ResponseEntity.ok(agentCard);
     }
 }

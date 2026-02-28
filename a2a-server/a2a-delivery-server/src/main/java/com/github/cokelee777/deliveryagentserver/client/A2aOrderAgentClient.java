@@ -19,6 +19,7 @@ import io.a2a.client.transport.jsonrpc.JSONRPCTransportConfig;
 import io.a2a.spec.AgentCard;
 import io.a2a.spec.Message;
 import io.a2a.spec.Task;
+import io.a2a.spec.TaskState;
 import io.a2a.spec.TextPart;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,9 +33,9 @@ import org.springframework.stereotype.Component;
 public class A2aOrderAgentClient {
 
     private final String orderAgentBaseUrl;
-    private final String orderAgentCardPath = "/.well-known/order-agent-card.json";
+    private volatile AgentCard orderAgentCard;
 
-    @Value("${a2a.client.timeout-seconds:12}")
+    @Value("${a2a.client.timeout-seconds}")
     private int timeoutSeconds;
 
     public A2aOrderAgentClient(
@@ -42,21 +43,34 @@ public class A2aOrderAgentClient {
         this.orderAgentBaseUrl = orderAgentBaseUrl;
     }
 
+    private AgentCard resolveAgentCard() {
+        if (orderAgentCard == null) {
+            synchronized (this) {
+                if (orderAgentCard == null) {
+                    A2AHttpClient httpClient = A2AHttpClientFactory.create();
+                    orderAgentCard = new A2ACardResolver(httpClient, orderAgentBaseUrl, null).getAgentCard();
+                    log.info("Order agent card resolved: {}", orderAgentCard.name());
+                }
+            }
+        }
+        return orderAgentCard;
+    }
+
     /**
      * 주문 에이전트에 A2A sendMessage로 운송장번호에 해당하는 주문 정보를 조회합니다.
      */
     public OrderInfoResponse getOrderInfo(String trackingNumber) {
         try {
-            A2AHttpClient httpClient = A2AHttpClientFactory.create();
-            AgentCard agentCard = new A2ACardResolver(httpClient, orderAgentBaseUrl, null, orderAgentCardPath)
-                    .getAgentCard();
-
             CompletableFuture<String> resultFuture = new CompletableFuture<>();
 
             List<BiConsumer<ClientEvent, AgentCard>> consumers = List.of(
                     (event, card) -> {
                         if (event instanceof TaskEvent taskEvent) {
                             Task task = taskEvent.getTask();
+                            if (TaskState.TASK_STATE_FAILED.equals(task.status().state())) {
+                                resultFuture.complete(null);
+                                return;
+                            }
                             StringBuilder sb = new StringBuilder();
                             if (task.artifacts() != null) {
                                 task.artifacts().forEach(artifact ->
@@ -73,11 +87,11 @@ public class A2aOrderAgentClient {
             );
 
             ClientConfig clientConfig = new ClientConfig.Builder()
-                    .setAcceptedOutputModes(List.of("text"))
+                    .setAcceptedOutputModes(List.of(TextPart.TEXT))
                     .build();
 
             try (Client client = Client
-                    .builder(agentCard)
+                    .builder(resolveAgentCard())
                     .clientConfig(clientConfig)
                     .withTransport(JSONRPCTransport.class, new JSONRPCTransportConfig())
                     .addConsumers(consumers)

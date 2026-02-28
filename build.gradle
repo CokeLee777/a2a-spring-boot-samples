@@ -41,13 +41,13 @@ subprojects {
             dependency "io.github.a2asdk:a2a-java-sdk-client:${a2aVersion}"
             dependency "io.github.a2asdk:a2a-java-sdk-server-common:${a2aVersion}"
             dependency "io.github.a2asdk:a2a-java-sdk-jsonrpc-common:${a2aVersion}"
+
+            // Spring AI 등 다른 BOM이 Gson을 2.10.1로 끌어내림 → SDK(Strictness) 위해 2.10+ 유지
+            dependency "com.google.code.gson:gson:${gsonVersion}"
         }
     }
 
     dependencies {
-        // Spring AI 등 다른 BOM이 Gson을 2.10.1로 끌어내림 → SDK(Strictness) 위해 2.10+ 유지
-        implementation "com.google.code.gson:gson:${gsonVersion}"
-
         compileOnly 'org.projectlombok:lombok'
         annotationProcessor 'org.projectlombok:lombok'
         testImplementation 'org.springframework.boot:spring-boot-starter-test'

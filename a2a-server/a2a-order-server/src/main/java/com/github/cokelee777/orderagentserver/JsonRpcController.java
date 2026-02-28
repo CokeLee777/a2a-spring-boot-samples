@@ -1,21 +1,21 @@
 package com.github.cokelee777.orderagentserver;
 
-import java.util.List;
-import java.util.UUID;
-
 import com.github.cokelee777.orderagentserver.executor.SkillExecutor;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.a2a.jsonrpc.common.json.JsonProcessingException;
 import io.a2a.jsonrpc.common.json.JsonUtil;
+import io.a2a.jsonrpc.common.wrappers.SendMessageResponse;
 import io.a2a.spec.*;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 public class JsonRpcController {
@@ -29,40 +29,41 @@ public class JsonRpcController {
     @PostMapping(value = "/a2a", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> handleJsonRpc(@RequestBody String body) throws JsonProcessingException {
         JsonObject request = JsonParser.parseString(body).getAsJsonObject();
-        JsonElement requestId = request.get("id");
+        Object requestId = extractId(request);
         String method = request.get("method").getAsString();
 
         if (!A2AMethods.SEND_MESSAGE_METHOD.equals(method)) {
-            return ResponseEntity.ok(buildErrorResponse(requestId, -32601, "Method not found: " + method));
+            return ResponseEntity.ok(JsonUtil.toJson(new SendMessageResponse(requestId,
+                    new A2AError(A2AErrorCodes.METHOD_NOT_FOUND_ERROR_CODE, "Method not found: " + method, null))));
         }
 
         JsonObject params = request.getAsJsonObject("params");
         String userText = extractText(params);
-        String role = extractRole(params);
-        boolean isInternalCall = Message.Role.ROLE_AGENT.name().equals(role);
+        boolean isInternalCall = Message.Role.ROLE_AGENT.name().equals(extractRole(params));
 
-        String resultText = routeToExecutor(userText, isInternalCall);
+        Task task;
+        try {
+            String resultText = routeToExecutor(userText, isInternalCall);
+            task = Task.builder()
+                    .id(UUID.randomUUID().toString())
+                    .contextId(UUID.randomUUID().toString())
+                    .status(new TaskStatus(TaskState.TASK_STATE_COMPLETED))
+                    .artifacts(List.of(
+                            Artifact.builder()
+                                    .artifactId(UUID.randomUUID().toString())
+                                    .parts(new TextPart(resultText))
+                                    .build()
+                    ))
+                    .build();
+        } catch (Exception e) {
+            task = Task.builder()
+                    .id(UUID.randomUUID().toString())
+                    .contextId(UUID.randomUUID().toString())
+                    .status(new TaskStatus(TaskState.TASK_STATE_FAILED))
+                    .build();
+        }
 
-        Task task = Task.builder()
-                .id(UUID.randomUUID().toString())
-                .contextId(UUID.randomUUID().toString())
-                .status(new TaskStatus(TaskState.TASK_STATE_COMPLETED))
-                .artifacts(List.of(
-                        Artifact.builder()
-                                .artifactId(UUID.randomUUID().toString())
-                                .parts(new TextPart(resultText))
-                                .build()
-                ))
-                .build();
-
-        String taskJson = JsonUtil.toJson(task);
-
-        JsonObject response = new JsonObject();
-        response.addProperty("jsonrpc", "2.0");
-        response.add("id", requestId);
-        response.add("result", JsonParser.parseString(taskJson));
-
-        return ResponseEntity.ok(response.toString());
+        return ResponseEntity.ok(JsonUtil.toJson(new SendMessageResponse(requestId, task)));
     }
 
     private String routeToExecutor(String userText, boolean isInternalCall) {
@@ -76,34 +77,30 @@ public class JsonRpcController {
 
     private String extractText(JsonObject params) {
         JsonObject message = params.getAsJsonObject("message");
+        if (message == null) return "";
         JsonArray parts = message.getAsJsonArray("parts");
-        for (JsonElement partEl : parts) {
-            JsonObject part = partEl.getAsJsonObject();
-            if (part.has("text")) {
-                return part.get("text").getAsString();
+        if (parts == null) return "";
+        for (var part : parts) {
+            JsonObject partObj = part.getAsJsonObject();
+            if (partObj.has(TextPart.TEXT)) {
+                return partObj.get(TextPart.TEXT).getAsString();
             }
         }
         return "";
     }
 
-    private String extractRole(JsonObject params) {
-        JsonObject message = params.getAsJsonObject("message");
-        if (message != null && message.has("role")) {
-            return message.get("role").getAsString();
-        }
-        return "user";
+    private Object extractId(JsonObject request) {
+        var idElement = request.get("id");
+        if (idElement == null || idElement.isJsonNull()) return null;
+        var prim = idElement.getAsJsonPrimitive();
+        if (prim.isNumber()) return prim.getAsInt();
+        return prim.getAsString();
     }
 
-    private String buildErrorResponse(JsonElement requestId, int code, String message) {
-        JsonObject error = new JsonObject();
-        error.addProperty("code", code);
-        error.addProperty("message", message);
-
-        JsonObject response = new JsonObject();
-        response.addProperty("jsonrpc", "2.0");
-        response.add("id", requestId);
-        response.add("error", error);
-
-        return response.toString();
+    private String extractRole(JsonObject params) {
+        JsonObject message = params.getAsJsonObject("message");
+        if (message == null) return "";
+        var role = message.get("role");
+        return role != null ? role.getAsString() : "";
     }
 }
