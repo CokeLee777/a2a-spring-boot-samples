@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Collections;
 import java.util.List;
 
 @Configuration
@@ -20,8 +21,8 @@ public class DeliveryAgentCardProducer {
                         .streaming(false)
                         .pushNotifications(false)
                         .build())
-                .defaultInputModes(List.of("text"))
-                .defaultOutputModes(List.of("text"))
+                .defaultInputModes(Collections.singletonList("text"))
+                .defaultOutputModes(Collections.singletonList("text"))
                 .skills(List.of(
                         AgentSkill.builder()
                                 .id("track_delivery")

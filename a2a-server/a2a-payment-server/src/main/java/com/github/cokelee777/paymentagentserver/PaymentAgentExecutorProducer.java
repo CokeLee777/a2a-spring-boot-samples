@@ -1,9 +1,9 @@
-package com.github.cokelee777.deliveryagentserver;
+package com.github.cokelee777.paymentagentserver;
 
 import java.util.List;
 import java.util.UUID;
 
-import com.github.cokelee777.deliveryagentserver.executor.SkillExecutor;
+import com.github.cokelee777.paymentagentserver.executor.SkillExecutor;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -18,16 +18,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class JsonRpcController {
+public class PaymentAgentExecutorProducer {
 
     private final List<SkillExecutor> skillExecutors;
 
-    public JsonRpcController(List<SkillExecutor> skillExecutors) {
+    public PaymentAgentExecutorProducer(List<SkillExecutor> skillExecutors) {
         this.skillExecutors = skillExecutors;
     }
 
     @PostMapping(value = "/a2a", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> handleJsonRpc(@RequestBody String body) throws JsonProcessingException {
+    public ResponseEntity<String> execute(@RequestBody String body) throws JsonProcessingException {
         JsonObject request = JsonParser.parseString(body).getAsJsonObject();
         Object requestId = extractId(request);
         String method = request.get("method").getAsString();
@@ -72,7 +72,7 @@ public class JsonRpcController {
                 return executor.execute(userText, isInternalCall);
             }
         }
-        return "배송 조회는 운송장번호(TRACK-)를 포함해 주세요. 예: TRACK-1001 배송 조회해줘";
+        return "결제 상태 조회는 주문번호(ORD-)를 포함해 주세요.";
     }
 
     private String extractText(JsonObject params) {

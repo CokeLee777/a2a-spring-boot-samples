@@ -1,6 +1,9 @@
-package com.github.cokelee777.orderagentserver;
+package com.github.cokelee777.deliveryagentserver;
 
-import com.github.cokelee777.orderagentserver.executor.SkillExecutor;
+import java.util.List;
+import java.util.UUID;
+
+import com.github.cokelee777.deliveryagentserver.executor.SkillExecutor;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -14,20 +17,17 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.UUID;
-
 @RestController
-public class JsonRpcController {
+public class DeliveryAgentExecutorProducer {
 
     private final List<SkillExecutor> skillExecutors;
 
-    public JsonRpcController(List<SkillExecutor> skillExecutors) {
+    public DeliveryAgentExecutorProducer(List<SkillExecutor> skillExecutors) {
         this.skillExecutors = skillExecutors;
     }
 
     @PostMapping(value = "/a2a", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> handleJsonRpc(@RequestBody String body) throws JsonProcessingException {
+    public ResponseEntity<String> execute(@RequestBody String body) throws JsonProcessingException {
         JsonObject request = JsonParser.parseString(body).getAsJsonObject();
         Object requestId = extractId(request);
         String method = request.get("method").getAsString();
@@ -72,7 +72,7 @@ public class JsonRpcController {
                 return executor.execute(userText, isInternalCall);
             }
         }
-        return "주문 취소 가능 여부 조회는 주문번호(ORD-)를 포함해 주세요. 예: ORD-1001 취소 가능한지 알려줘";
+        return "배송 조회는 운송장번호(TRACK-)를 포함해 주세요. 예: TRACK-1001 배송 조회해줘";
     }
 
     private String extractText(JsonObject params) {
