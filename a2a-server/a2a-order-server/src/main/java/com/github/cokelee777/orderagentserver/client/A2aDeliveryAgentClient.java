@@ -1,12 +1,6 @@
 package com.github.cokelee777.orderagentserver.client;
 
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-
+import io.a2a.A2A;
 import io.a2a.client.Client;
 import io.a2a.client.ClientEvent;
 import io.a2a.client.TaskEvent;
@@ -16,14 +10,17 @@ import io.a2a.client.http.A2AHttpClient;
 import io.a2a.client.http.A2AHttpClientFactory;
 import io.a2a.client.transport.jsonrpc.JSONRPCTransport;
 import io.a2a.client.transport.jsonrpc.JSONRPCTransportConfig;
-import io.a2a.spec.AgentCard;
-import io.a2a.spec.Message;
-import io.a2a.spec.Task;
-import io.a2a.spec.TaskState;
-import io.a2a.spec.TextPart;
+import io.a2a.spec.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A2A 프로토콜을 사용해 배송 에이전트에 메시지를 보내 배송 상태를 조회합니다.
@@ -63,8 +60,11 @@ public class A2aDeliveryAgentClient {
      */
     public DeliveryStatusResponse getDeliveryStatus(String trackingNumber) {
         try {
-            CompletableFuture<String> resultFuture = new CompletableFuture<>();
+            ClientConfig clientConfig = new ClientConfig.Builder()
+                    .setAcceptedOutputModes(List.of("text"))
+                    .build();
 
+            CompletableFuture<String> resultFuture = new CompletableFuture<>();
             List<BiConsumer<ClientEvent, AgentCard>> consumers = List.of(
                     (event, card) -> {
                         if (event instanceof TaskEvent taskEvent) {
@@ -88,21 +88,14 @@ public class A2aDeliveryAgentClient {
                     }
             );
 
-            ClientConfig clientConfig = new ClientConfig.Builder()
-                    .setAcceptedOutputModes(List.of(TextPart.TEXT))
-                    .build();
-
             try (Client client = Client
                     .builder(resolveAgentCard())
                     .clientConfig(clientConfig)
                     .withTransport(JSONRPCTransport.class, new JSONRPCTransportConfig())
                     .addConsumers(consumers)
                     .build()) {
-                Message agentMessage = Message.builder()
-                        .role(Message.Role.ROLE_AGENT)
-                        .parts(List.of(new TextPart(trackingNumber)))
-                        .build();
-                client.sendMessage(agentMessage);
+                Message message = A2A.toAgentMessage(trackingNumber);
+                client.sendMessage(message);
             }
 
             String responseText = resultFuture.get(timeoutSeconds, TimeUnit.SECONDS);
@@ -120,5 +113,6 @@ public class A2aDeliveryAgentClient {
         }
     }
 
-    public record DeliveryStatusResponse(String trackingNumber, String status, String detail) {}
+    public record DeliveryStatusResponse(String trackingNumber, String status, String detail) {
+    }
 }

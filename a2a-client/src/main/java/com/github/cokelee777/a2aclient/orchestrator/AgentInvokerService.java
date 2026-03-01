@@ -1,5 +1,6 @@
 package com.github.cokelee777.a2aclient.orchestrator;
 
+import io.a2a.A2A;
 import io.a2a.client.Client;
 import io.a2a.client.ClientEvent;
 import io.a2a.client.TaskEvent;
@@ -89,8 +90,11 @@ public class AgentInvokerService {
 
     private String sendRequest(AgentCard agentCard, String text) {
         try {
-            CompletableFuture<String> resultFuture = new CompletableFuture<>();
+            ClientConfig clientConfig = new ClientConfig.Builder()
+                    .setAcceptedOutputModes(List.of("text"))
+                    .build();
 
+            CompletableFuture<String> resultFuture = new CompletableFuture<>();
             List<BiConsumer<ClientEvent, AgentCard>> consumers = List.of(
                     (event, card) -> {
                         if (event instanceof TaskEvent taskEvent) {
@@ -116,10 +120,6 @@ public class AgentInvokerService {
 
             Consumer<Throwable> errorHandler = resultFuture::completeExceptionally;
 
-            ClientConfig clientConfig = new ClientConfig.Builder()
-                    .setAcceptedOutputModes(List.of(TextPart.TEXT))
-                    .build();
-
             try (Client client = Client
                     .builder(agentCard)
                     .clientConfig(clientConfig)
@@ -127,11 +127,8 @@ public class AgentInvokerService {
                     .addConsumers(consumers)
                     .streamingErrorHandler(errorHandler)
                     .build()) {
-                Message userMessage = Message.builder()
-                        .role(Message.Role.ROLE_USER)
-                        .parts(List.of(new TextPart(text)))
-                        .build();
-                client.sendMessage(userMessage);
+                Message message = A2A.toUserMessage(text);
+                client.sendMessage(message);
             }
 
             return resultFuture.get(timeoutSeconds, TimeUnit.SECONDS);

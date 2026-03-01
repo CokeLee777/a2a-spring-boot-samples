@@ -1,14 +1,14 @@
 package com.github.cokelee777.orderagentserver;
 
-import java.util.List;
-
 import io.a2a.spec.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.List;
+
 @Configuration
-public class AgentCardProducer {
+public class OrderAgentCardProducer {
 
     @Bean
     public AgentCard orderAgentCard(@Value("${server.port}") int serverPort) {
@@ -20,8 +20,8 @@ public class AgentCardProducer {
                         .streaming(false)
                         .pushNotifications(false)
                         .build())
-                .defaultInputModes(List.of(TextPart.TEXT))
-                .defaultOutputModes(List.of(TextPart.TEXT))
+                .defaultInputModes(List.of("text"))
+                .defaultOutputModes(List.of("text"))
                 .skills(List.of(
                         AgentSkill.builder()
                                 .id("order_cancellability_check")

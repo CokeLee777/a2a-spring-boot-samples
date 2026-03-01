@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class AgentCardProducer {
+public class PaymentAgentCardProducer {
 
     @Bean
     public AgentCard paymentAgentCard(@Value("${server.port}") int serverPort) {
@@ -20,8 +20,8 @@ public class AgentCardProducer {
                         .streaming(false)
                         .pushNotifications(false)
                         .build())
-                .defaultInputModes(List.of(TextPart.TEXT))
-                .defaultOutputModes(List.of(TextPart.TEXT))
+                .defaultInputModes(List.of("text"))
+                .defaultOutputModes(List.of("text"))
                 .skills(List.of(
                         AgentSkill.builder()
                                 .id("payment_status")

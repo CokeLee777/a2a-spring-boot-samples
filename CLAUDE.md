@@ -55,7 +55,7 @@ User → A2A Client (8080) → [LLM intent extraction] → Order Agent (8081)
 
 **Skill Executors** (`*SkillExecutor.java`): Each agent implements `SkillExecutor` to handle incoming A2A requests. Internal vs. external calls are distinguished by the `isInternalCall` boolean (derived from `Message.Role.ROLE_AGENT` in the request body), **not** string prefixes.
 
-**Agent Clients** (`A2a*Client.java`): Typed HTTP clients that wrap A2A Protocol calls to other agents.
+**Agent Clients** (`A2a*Client.java`): Typed HTTP clients that wrap A2A Protocol calls to other agents. Use `A2A.toUserMessage(text)` and `A2A.toAgentMessage(text)` SDK utilities to build messages instead of the verbose `Message.builder()` chain. Input/output modes are specified as `List.of("text")` string literals.
 
 **In-memory databases** (`*Database.java`): Static `ConcurrentHashMap` with hardcoded sample data. No persistence layer.
 

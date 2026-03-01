@@ -1,4 +1,4 @@
-package com.github.cokelee777.deliveryagentserver;
+package com.github.cokelee777.orderagentserver;
 
 import io.a2a.spec.AgentCard;
 import lombok.RequiredArgsConstructor;
@@ -9,12 +9,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
-public class AgentCardController {
+public class OrderAgentCardController {
 
-    private final AgentCard agentCard;
+    private final AgentCard orderAgentCard;
 
     @GetMapping(value = "/.well-known/agent-card.json", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<AgentCard> getAgentCard() {
-        return ResponseEntity.ok(agentCard);
+    public ResponseEntity<AgentCard> getOrderAgentCard() {
+        return ResponseEntity.ok(orderAgentCard);
     }
 }

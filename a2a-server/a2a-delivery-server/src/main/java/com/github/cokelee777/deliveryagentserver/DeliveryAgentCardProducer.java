@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import java.util.List;
 
 @Configuration
-public class AgentCardProducer {
+public class DeliveryAgentCardProducer {
 
     @Bean
     public AgentCard deliveryAgentCard(@Value("${server.port}") int serverPort) {
@@ -20,8 +20,8 @@ public class AgentCardProducer {
                         .streaming(false)
                         .pushNotifications(false)
                         .build())
-                .defaultInputModes(List.of(TextPart.TEXT))
-                .defaultOutputModes(List.of(TextPart.TEXT))
+                .defaultInputModes(List.of("text"))
+                .defaultOutputModes(List.of("text"))
                 .skills(List.of(
                         AgentSkill.builder()
                                 .id("track_delivery")
