@@ -6,7 +6,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.a2a.jsonrpc.common.json.JsonProcessingException;
 import io.a2a.jsonrpc.common.json.JsonUtil;
-import io.a2a.jsonrpc.common.wrappers.SendMessageRequest;
 import io.a2a.jsonrpc.common.wrappers.SendMessageResponse;
 import io.a2a.spec.*;
 import org.springframework.http.MediaType;
@@ -29,7 +28,6 @@ public class JsonRpcController {
 
     @PostMapping(value = "/a2a", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> handleJsonRpc(@RequestBody String body) throws JsonProcessingException {
-        SendMessageRequest sendMessageRequest = JsonUtil.fromJson(body, SendMessageRequest.class);
         JsonObject request = JsonParser.parseString(body).getAsJsonObject();
         Object requestId = extractId(request);
         String method = request.get("method").getAsString();
