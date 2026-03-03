@@ -4,7 +4,7 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.stereotype.Service;
@@ -42,10 +42,9 @@ public class ChatOrchestratorService {
         }
 
         try {
-            OpenAiChatOptions options = OpenAiChatOptions.builder()
+            ToolCallingChatOptions options = ToolCallingChatOptions.builder()
                     .toolCallbacks(tools)
                     .internalToolExecutionEnabled(true)
-                    .parallelToolCalls(true)
                     .build();
 
             Prompt prompt = new Prompt(new UserMessage(userMessage), options);

@@ -92,7 +92,9 @@ Client는 Spring AI + LLM을 사용하여\
 
 ## 필수 환경 변수 (Client 실행 전)
 
-- `OPENAI_API_KEY`: OPENAI API 키(OpenAI, Gemini 등)
+- `GOOGLE_API_KEY`: Google AI(Gemini) API 키 (무료 tier 사용 가능)
+- (선택) `APP_CHAT_PROVIDER`: 사용할 LLM provider. 기본값 `google-genai`
+- (선택) `GOOGLE_GENAI_MODEL`: 모델명. 기본값 `gemini-2.5-flash-lite`
 
 ## 요청 예
 

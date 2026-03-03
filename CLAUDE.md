@@ -34,7 +34,7 @@ A multi-module Spring Boot project demonstrating the **Agent-to-Agent (A2A) Prot
 ./gradlew :a2a-client:test
 ```
 
-**Required environment variable:** `OPENAI_API_KEY` (used for LLM routing in the client)
+**Required environment variable:** `GOOGLE_API_KEY` (used for LLM routing in the client when `app.chat.provider=google-genai`)
 
 ## Architecture
 
@@ -67,17 +67,21 @@ User → A2A Client (8080) → [LLM intent extraction] → Order Agent (8081)
 
 ### LLM Configuration
 
-The client uses Spring AI with OpenAI-compatible API. Default model is `gemini-2.5-flash-lite` via Google's OpenAI-compatible endpoint. Configure via `application.yml`:
+The client uses Spring AI with a selectable chat provider. Default is Google GenAI (Gemini) via `app.chat.provider=google-genai`. Configure via `application.yml`:
 
 ```yaml
-spring.ai.openai.chat.base-url: ${OPENAI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai/}
-spring.ai.openai.chat.options.model: ${OPENAI_MODEL:gemini-2.5-flash-lite}
+app.chat.provider: ${APP_CHAT_PROVIDER:google-genai}
+spring.ai.google.genai.api-key: ${GOOGLE_API_KEY}
+spring.ai.google.genai.chat.options.model: ${GOOGLE_GENAI_MODEL:gemini-2.5-flash-lite}
+spring.ai.google.genai.chat.options.temperature: 0.7
 ```
+
+To add another provider (e.g. OpenAI) later, add a Config with `@ConditionalOnProperty(name = "app.chat.provider", havingValue = "openai")` and set `app.chat.provider=openai` to use it.
 
 ## Technology Stack
 
 - **Java 17**, **Spring Boot 3.3.5**, **Gradle**
-- **Spring AI 1.1.2** — LLM integration (OpenAI-compatible)
+- **Spring AI 1.1.2** — LLM integration (default: Google GenAI; provider selectable via `app.chat.provider`)
 - **A2A Java SDK 1.0.0.Alpha3** — Agent-to-Agent protocol
 - **Gson 2.13.2** — JSON parsing
 - **Lombok** — boilerplate reduction

@@ -1,5 +1,5 @@
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.ai:spring-ai-openai'
+    implementation 'org.springframework.ai:spring-ai-google-genai'
     implementation 'io.github.a2asdk:a2a-java-sdk-client'
 }
