@@ -1,20 +1,23 @@
 package com.github.cokelee777.paymentagentserver;
 
-import java.util.List;
-
 import io.a2a.spec.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 @Configuration
 public class PaymentAgentCardProducer {
 
     @Bean
     public AgentCard paymentAgentCard(@Value("${server.port}") int serverPort) {
+        final String AGENT_URL = String.format("http://localhost:%s/a2a", serverPort);
         return AgentCard.builder()
                 .name("Payment Agent")
                 .description("결제·환불 상태를 조회하고, 주문 취소 시 환불 가능 여부를 판단하는 에이전트")
+                .supportedInterfaces(List.of(
+                        new AgentInterface(TransportProtocol.JSONRPC.asString(), AGENT_URL)))
                 .version("1.0.0")
                 .capabilities(AgentCapabilities.builder()
                         .streaming(false)
@@ -33,8 +36,6 @@ public class PaymentAgentCardProducer {
                                 ))
                                 .build()
                 ))
-                .supportedInterfaces(List.of(
-                        new AgentInterface("JSONRPC", "http://localhost:" + serverPort + "/a2a")))
                 .build();
     }
 }

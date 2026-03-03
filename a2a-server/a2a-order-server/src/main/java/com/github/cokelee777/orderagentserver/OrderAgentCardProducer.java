@@ -12,9 +12,12 @@ public class OrderAgentCardProducer {
 
     @Bean
     public AgentCard orderAgentCard(@Value("${server.port}") int serverPort) {
+        final String AGENT_URL = String.format("http://localhost:%s/a2a", serverPort);
         return AgentCard.builder()
                 .name("Order Cancellability Check Agent")
                 .description("주문 취소 가능 여부를 조회하는 에이전트")
+                .supportedInterfaces(List.of(
+                        new AgentInterface(TransportProtocol.JSONRPC.asString(), AGENT_URL)))
                 .version("1.0.0")
                 .capabilities(AgentCapabilities.builder()
                         .streaming(false)
@@ -35,8 +38,6 @@ public class OrderAgentCardProducer {
                                 ))
                                 .build()
                 ))
-                .supportedInterfaces(List.of(
-                        new AgentInterface("JSONRPC", "http://localhost:" + serverPort + "/a2a")))
                 .build();
     }
 }
