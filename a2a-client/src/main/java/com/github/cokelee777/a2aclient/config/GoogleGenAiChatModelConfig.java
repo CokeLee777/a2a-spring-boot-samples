@@ -20,8 +20,8 @@ public class GoogleGenAiChatModelConfig {
     @Bean
     public ChatModel chatModel(
             @Value("${spring.ai.google.genai.api-key}") String apiKey,
-            @Value("${spring.ai.google.genai.chat.options.model}") String model,
-            @Value("${spring.ai.google.genai.chat.options.temperature}") double temperature) {
+            @Value("${spring.ai.google.genai.chat.options.model:gemini-2.5-flash-lite}") String model,
+            @Value("${spring.ai.google.genai.chat.options.temperature:0.7}") double temperature) {
         Client client = Client.builder()
                 .apiKey(apiKey)
                 .build();
