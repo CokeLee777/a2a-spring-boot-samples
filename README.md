@@ -1,134 +1,181 @@
 # a2a-spring-boot-samples
-Spring Boot samples using the Agent2Agent (A2A) Protocol
 
-## 모듈 구성
+Spring Boot samples demonstrating the **Agent-to-Agent (A2A) Protocol** for microagent coordination. An LLM-powered client (using Spring AI + ChatClient) handles natural language queries, intelligently routes them to specialized agents that communicate over the A2A Protocol, and maintains multi-turn conversation context.
 
-| 모듈 | 포트 | 설명 |
-|------|------|------|
-| **a2a-server/a2a-order-server** | 8081 | 주문 취소 가능 여부 확인 에이전트 (ORD-* 처리) |
-| **a2a-server/a2a-delivery-server** | 8082 | 배송 조회 에이전트 (TRACK-* 처리) |
-| **a2a-server/a2a-payment-server** | 8083 | 결제·환불 상태 에이전트 (주문 취소 시 환불 가능 여부 조회) |
-| **a2a-client** | 8080 | 진입점 + LLM 의도 분석 → 해당 에이전트 호출 |
+## Architecture Overview
 
-## 에이전트 간 통신 (A2A Java SDK)
-
-에이전트 간에는 **A2A 프로토콜**로만 통신합니다. 각 에이전트에 `a2a-java-sdk-client`를 넣고, 상대 에이전트의 Agent Card를 resolve한 뒤 `Client.sendMessage()`로 메시지를 보내고, 응답 Task의 artifact 텍스트를 파싱해 사용합니다.
-
-에이전트가 다른 에이전트를 호출할 때는 `Message.Role.ROLE_AGENT`를 사용합니다. 수신 에이전트는 JSON body의 `role` 필드를 읽어 `isInternalCall` 여부를 판단하고, 내부/외부 호출에 따라 다른 응답을 반환합니다.
-
-### 주문 취소 가능 여부 확인 시
-
-Order Agent는 다음 두 에이전트를 **병렬 호출**합니다:
-
-- **Delivery Agent** (`Message.Role.ROLE_AGENT`, 메시지: `TRACK-xxx`)
-    - 배송 상태가 `배송중` 또는 `배송완료`이면 취소 불가
-    - 응답: `status:배송중`
-
-- **Payment Agent** (`Message.Role.ROLE_AGENT`, 메시지: `ORD-xxx`)
-    - 환불 불가 상태이면 취소 불가
-    - 응답: `refundEligible:true|false`
-
-두 결과를 종합하여 최종 취소 가능 여부를 판단합니다.
-
-## 배송 조회 시
-
-Delivery Agent는 주문 정보를 함께 보여주기 위해
-Order Agent에 `Message.Role.ROLE_AGENT`로 운송장번호를 전송합니다.
-
-    메시지 텍스트: TRACK-xxx
-    role: ROLE_AGENT
-
-Order Agent는 운송장번호로 주문을 조회한 뒤, 다음과 같은 구조의 텍스트
-응답을 반환합니다:
-
-    orderNumber: ORD-1001
-    orderDate: 2026-02-27
-    status: PAID
-
-Delivery Agent는 해당 응답을 파싱하여 배송 상태와 함께 주문 정보를
-결합해 최종 응답을 생성합니다.
-
-
-## 실행 방법
-
-1.  Order Agent 실행:
-
-        ./gradlew :a2a-server:a2a-order-server:bootRun
-
-2.  Delivery Agent 실행:
-
-        ./gradlew :a2a-server:a2a-delivery-server:bootRun
-
-3.  Payment Agent 실행:
-
-        ./gradlew :a2a-server:a2a-payment-server:bootRun
-
-4.  Client 실행:
-
-        ./gradlew :a2a-client:bootRun
-
-## 직접 호출 (기존 방식)
-
--   배송 조회:
-
-        http://localhost:8080/api/delivery?trackingNumber=TRACK-1001
-
--   주문 취소 가능 여부 확인:
-
-        http://localhost:8080/api/order/cancel/check?orderNumber=ORD-1001
-
-## 자유 문의 (LLM 라우팅)
-
-Client는 Spring AI + LLM을 사용하여\
-사용자 문의의 의도(intent)와 식별자를 분석한 뒤, 해당 A2A 에이전트를
-호출합니다.
-
-### 분석 가능한 의도
-
--   `order_cancellability_check`
--   `delivery_track`
--   `both`
--   `unclear`
-
-## 필수 환경 변수 (Client 실행 전)
-
-- `GOOGLE_API_KEY`: Google AI(Gemini) API 키 (무료 tier 사용 가능)
-- (선택) `APP_CHAT_PROVIDER`: 사용할 LLM provider. 기본값 `google-genai`
-- (선택) `GOOGLE_GENAI_MODEL`: 모델명. 기본값 `gemini-2.5-flash-lite`
-
-## 요청 예
-
-### 주문 취소 가능 여부 확인
-
-``` bash
-curl -X POST http://localhost:8080/api/chat   -H "Content-Type: application/json"   -d '{"message": "ORD-1001 취소 가능해?"}'
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      User (LLM Chat Interface)                  │
+└────────────────────────────┬────────────────────────────────────┘
+                             │ Natural Language Query
+                             ↓
+┌─────────────────────────────────────────────────────────────────┐
+│              A2A Client (Port 8080, Spring AI)                  │
+│  • ChatClient + Tool-calling for agent routing                 │
+│  • Session-based conversation memory (20 message window)        │
+│  • Google Gemini 2.5-flash-lite (default LLM)                  │
+└────────────────────────────┬────────────────────────────────────┘
+                             │ A2A Protocol (JSON-RPC)
+                  ┌──────────┴──────────┐
+                  ↓                     ↓
+    ┌──────────────────────┐  ┌──────────────────────┐
+    │ Order Agent (8081)   │  │ Delivery Agent (8082)│
+    │ • Order List         │  │ • Track Delivery     │
+    │ • Cancel Check       │  │ + Query Order Info   │
+    │ (Parallel calls)     │  │                      │
+    └──────────┬───────────┘  └──────────┬───────────┘
+               │                         │
+               ↓ A2A (ROLE_AGENT)        │
+         ┌──────────────────┐            │
+         │ Payment Agent    │ ←──────────┘
+         │ (8083)           │
+         │ • Refund Status  │
+         │ (Internal only)  │
+         └──────────────────┘
 ```
 
-### 배송 조회
+## Module Structure & Ports
 
-``` bash
-curl -X POST http://localhost:8080/api/chat   -H "Content-Type: application/json"   -d '{"message": "TRACK-1001 배송 어디쯤이야?"}'
+| Module | Port | Responsibility |
+|--------|------|----------------|
+| **a2a-client** | 8080 | Entry point: Spring AI ChatClient, LLM tool-calling, session-based chat |
+| **a2a-order-server** | 8081 | Order management: list, cancellation eligibility check (with parallel delivery/payment calls) |
+| **a2a-delivery-server** | 8082 | Shipping: delivery tracking, order info enrichment |
+| **a2a-payment-server** | 8083 | Payment/refund status (internal agent-to-agent calls only) |
+
+## Key Communication Patterns
+
+### A2A Protocol (Agent-to-Agent)
+
+Agents communicate exclusively via **A2A Protocol** (JSON-RPC over HTTP):
+
+- **External calls** (Client → Agent): `Message.Role.ROLE_USER` with natural language
+- **Internal calls** (Agent → Agent): `Message.Role.ROLE_AGENT` with identifier (e.g., `TRACK-1001`, `ORD-1001`)
+  - Server reads `role` from JSON body to set `isInternalCall` boolean
+  - Different responses based on call type
+
+### Parallel Agent Coordination (Order Cancellation Check)
+
+When checking order cancellation eligibility, Order Agent initiates **concurrent** calls:
+
+1. **Delivery Agent** (with tracking number)
+   - Returns delivery status (`배송중`, `배송완료`, etc.)
+   - ✗ Blocks cancellation if shipping in progress or completed
+
+2. **Payment Agent** (with order number)
+   - Returns refund eligibility (`refundEligible:true/false`)
+   - ✗ Blocks cancellation if refund not allowed
+
+Order Agent waits for both responses (timeout: `a2a.client.timeout-seconds`, default 15s) and combines results to determine final cancellation eligibility.
+
+## Session-Based Chat API
+
+The client provides a stateful chat interface with conversation memory.
+
+### Endpoint: `POST /chat`
+
+```json
+Request:
+{
+  "message": "ORD-1001 취소 가능해?",
+  "sessionId": "optional-for-continuation",
+  "memberId": "optional-user-context"
+}
+
+Response:
+{
+  "sessionId": "session-uuid",
+  "response": "주문 ORD-1001은 취소 가능합니다..."
+}
 ```
 
-## 전체 흐름
+Same `sessionId` maintains multi-turn conversation context (up to 20 messages per session).
 
-    사용자 문의
-       ↓
-    LLM (의도 + 식별자 추출)
-       ↓
-    A2A Client 라우팅
-       ↓
-    Order / Delivery Agent 호출
-       ↓
-    필요 시 내부 A2A 병렬 호출
-       ↓
-    최종 응답 반환
+## Quick Start
 
-## 특징
+### 1. Set Environment Variables
 
--   LLM은 실제 취소를 실행하지 않음
--   Order Agent가 취소 가능 여부만 판단
--   에이전트 간 통신은 HTTP 직접 호출이 아닌 **A2A 프로토콜**
--   내부 에이전트 호출 시 `Message.Role.ROLE_AGENT` 사용 (문자열 접두사 방식 대비 보안 강화)
--   내부 병렬 호출을 통한 마이크로 에이전트 협력 구조
--   타임아웃은 `a2a.client.timeout-seconds` 프로퍼티로 중앙화
+```bash
+export GOOGLE_API_KEY="your-google-ai-api-key"  # Required for client
+# Optional:
+export APP_CHAT_PROVIDER="google-genai"  # default
+export GOOGLE_GENAI_MODEL="gemini-2.5-flash-lite"  # default
+```
+
+### 2. Run All Servers (in separate terminals)
+
+```bash
+# Terminal 1: Order Agent
+./gradlew :a2a-server:a2a-order-server:bootRun
+
+# Terminal 2: Delivery Agent
+./gradlew :a2a-server:a2a-delivery-server:bootRun
+
+# Terminal 3: Payment Agent
+./gradlew :a2a-server:a2a-payment-server:bootRun
+
+# Terminal 4: A2A Client (after other servers are ready)
+./gradlew :a2a-client:bootRun
+```
+
+### 3. Chat Examples
+
+```bash
+# New session - Ask about order cancellation
+curl -X POST http://localhost:8080/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "ORD-1001 취소 가능해?",
+    "memberId": "user123"
+  }'
+
+# Continuing same session - Track delivery
+curl -X POST http://localhost:8080/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "TRACK-1001 배송 어디쯤이야?",
+    "sessionId": "<sessionId-from-previous-response>"
+  }'
+
+# Freeform query - Let LLM decide
+curl -X POST http://localhost:8080/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "주문 상태 확인하고 취소할 수 있으면 취소해줄 수 있어?"
+  }'
+```
+
+## Build & Test
+
+```bash
+# Build all modules
+./gradlew build
+
+# Run tests
+./gradlew test
+
+# Test specific module
+./gradlew :a2a-client:test
+
+# Validate JavaDoc (included in build)
+./gradlew javadoc
+```
+
+## Documentation
+
+All modules include comprehensive **English JavaDoc documentation**:
+- Class-level documentation explaining purpose and role
+- Method documentation with `@param` and `@return` tags
+- Record documentation with parameter descriptions
+- Interface method documentation
+
+View generated docs after build: `build/docs/javadoc/index.html` in each module.
+
+## Technology Stack
+
+- **Java 17**, **Spring Boot 3.3.5**, **Gradle**
+- **Spring AI 1.1.2** — LLM integration via ChatClient (Google Gemini by default)
+- **A2A Java SDK 1.0.0.Alpha3** — Agent-to-Agent protocol (JSON-RPC)
+- **Gson 2.13.2** — JSON parsing
+- **Lombok** — boilerplate reduction

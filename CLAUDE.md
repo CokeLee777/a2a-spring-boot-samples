@@ -1,103 +1,276 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for working with the A2A Spring Boot Samples project. This document describes the architecture, key patterns, SDK usage, and best practices.
 
 ## Project Overview
 
-A multi-module Spring Boot project demonstrating the **Agent-to-Agent (A2A) Protocol** for coordinating microagents. An LLM-powered client routes natural language queries to specialized agents that communicate with each other over the A2A Protocol (JSON-RPC over HTTP).
+A multi-module Spring Boot application demonstrating **Agent-to-Agent (A2A) Protocol** for coordinating specialized microagents. The LLM-powered client uses Spring AI's `ChatClient` with tool-calling to understand natural language queries, route them to appropriate agents, and maintain multi-turn conversation context.
+
+**Current Status (as of March 2026):**
+- ✅ All modules have comprehensive English JavaDoc (class, method, and record level)
+- ✅ Session-based chat API with conversation memory (20 message window)
+- ✅ Spring AI ChatClient integration with Google Gemini 2.5-flash-lite
+- ✅ Parallel agent coordination (concurrent Delivery + Payment calls)
+- ✅ gradle javadoc validation passes (no errors/warnings)
 
 ## Module Structure & Ports
 
 | Module | Port | Responsibility |
 |--------|------|----------------|
-| `a2a-client` | 8080 | Entry point: LLM intent analysis + agent routing |
-| `a2a-server/a2a-order-server` | 8081 | Order cancellation eligibility check |
-| `a2a-server/a2a-delivery-server` | 8082 | Delivery tracking + order enrichment |
-| `a2a-server/a2a-payment-server` | 8083 | Payment/refund status (internal only) |
+| `a2a-client` | 8080 | Entry point: ChatClient + tool-calling, session management, LLM routing |
+| `a2a-order-server` | 8081 | Order queries, cancellation eligibility (with parallel agent calls) |
+| `a2a-delivery-server` | 8082 | Shipping tracking, order info enrichment (internal A2A calls) |
+| `a2a-payment-server` | 8083 | Refund eligibility checks (internal agent-to-agent only) |
 
-## Build & Run Commands
+## Architecture & Communication Flow
+
+```
+User (Natural Language)
+        ↓
+A2A Client (8080) — ChatClient + FunctionToolCallback
+  • Parses intent via LLM tool-calling
+  • Maintains session memory (20 messages)
+  • Routes to agents via A2A Protocol
+        ↓ (JSON-RPC)
+    ┌─────────┬─────────┐
+    ↓         ↓         ↓
+Order Agent   Delivery  Payment
+(8081)        Agent     Agent
+    ↓         (8082)    (8083)
+    ├────────→ ├─────→ ↓ (internal calls)
+    │         (parallel)
+    └─────────────────────
+```
+
+### A2A Protocol Details
+
+- **Client → Agent:** `POST /a2a` with `Message.Role.ROLE_USER` + natural language
+- **Agent → Agent:** `POST /a2a` with `Message.Role.ROLE_AGENT` + identifier (e.g., `ORD-1001`, `TRACK-1001`)
+  - Server reads `role` from JSON request body to determine `isInternalCall` boolean
+  - Internal calls receive minimal data; external calls receive formatted, user-friendly responses
+
+### Key Code Patterns
+
+**1. SkillExecutor Interface** (all agents)
+
+```java
+public interface SkillExecutor {
+  boolean canHandle(String message, boolean isInternalCall);
+  String execute(String message, boolean isInternalCall);
+}
+```
+
+Each agent implements this interface. Implementations check the `isInternalCall` flag (not string prefixes) to decide response format.
+
+**2. A2A Client Pattern** (agents calling other agents)
+
+```java
+// Agent-to-agent communication
+@Component
+public class A2a*AgentClient {
+  private volatile AgentCard agentCard;  // Lazy-loaded, cached
+
+  public Response getInfo(String identifier) {
+    Message msg = A2A.toAgentMessage(identifier);  // Use SDK utility
+    // Build client, send message, parse artifact
+  }
+}
+```
+
+Key points:
+- Use `A2A.toAgentMessage(text)` and `A2A.toUserMessage(text)` SDK utilities (not verbose `Message.builder()`)
+- Cache `AgentCard` at field level (lazy init with synchronized double-check)
+- Always specify output mode: `List.of("text")`
+
+**3. In-Memory Database Pattern**
+
+```java
+public class *Database {
+  private static final Map<String, Info> DATA = Map.of(
+    "ORD-1001", new OrderInfo(...)
+  );
+
+  public static Optional<Info> findById(String id) {
+    return Optional.ofNullable(DATA.get(id));
+  }
+
+  public record Info(...) {}  // Use records for data objects
+}
+```
+
+**4. Spring AI ChatClient Pattern** (client only)
+
+```java
+@Service
+public class ChatOrchestrator {
+  private final ChatClient chatClient;
+
+  public ChatResponse handle(ChatRequest request) {
+    String content = chatClient.prompt()
+      .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, request.sessionId()))
+      .user(prepareUserMessage(request))
+      .call()
+      .content();
+    return new ChatResponse(request.sessionId(), content);
+  }
+}
+```
+
+- Tools are registered at ChatClient build time via `defaultTools(toolInstances)`
+- Tool-calling is automatic (`internalToolExecutionEnabled=true` by default)
+- Session memory is managed via `ChatMemory.CONVERSATION_ID` advisor parameter
+
+### Parallel Agent Coordination Example
+
+**OrderCancellabilitySkillExecutor** (see full JavaDoc in code):
+
+```java
+@Override
+public String execute(String userMessage, boolean isInternalCall) {
+  // Initiate parallel calls
+  CompletableFuture<PaymentStatus> paymentFuture =
+    CompletableFuture.supplyAsync(() -> paymentClient.getStatus(orderNumber));
+  CompletableFuture<DeliveryStatus> deliveryFuture =
+    CompletableFuture.supplyAsync(() -> deliveryClient.getStatus(trackingNumber));
+
+  // Wait for both (with timeout)
+  PaymentStatus ps = paymentFuture.get(timeoutSeconds, TimeUnit.SECONDS);
+  DeliveryStatus ds = deliveryFuture.get(timeoutSeconds, TimeUnit.SECONDS);
+
+  // Combine results to determine cancellability
+  boolean cancellable = ps.refundEligible() && !isShipping(ds);
+  return formatResponse(cancellable);
+}
+```
+
+## Documentation Standards
+
+**All public classes, methods, records, and interfaces now have comprehensive English JavaDoc:**
+
+- **Classes:** Purpose, role in system, any special behavior
+- **Methods:** What it does, parameters, return values, exceptions
+- **Records:** All parameter descriptions
+- **Interfaces:** Contract and all method semantics
+
+Example:
+```java
+/**
+ * Skill executor for delivery tracking.
+ *
+ * For internal calls, returns only status.
+ * For external calls, enriches with order info via Order Agent.
+ */
+@Component
+public class DeliverySkillExecutor implements SkillExecutor {
+  /**
+   * Handles delivery status queries by tracking number.
+   *
+   * @param message the tracking number (TRACK-xxx)
+   * @param isInternalCall true if called from another agent
+   * @return status line or formatted delivery info
+   */
+  @Override
+  public String execute(String message, boolean isInternalCall) { ... }
+}
+```
+
+Validation: `./gradlew javadoc` passes with 0 errors/warnings.
+
+## Configuration & Environment
+
+### application.yml (Client)
+
+```yaml
+app:
+  chat:
+    provider: ${APP_CHAT_PROVIDER:google-genai}
+spring:
+  ai:
+    google:
+      genai:
+        api-key: ${GOOGLE_API_KEY}
+        chat:
+          options:
+            model: ${GOOGLE_GENAI_MODEL:gemini-2.5-flash-lite}
+            temperature: 0.7
+a2a:
+  client:
+    timeout-seconds: 15
+    order-agent-url: http://localhost:8081
+    delivery-agent-url: http://localhost:8082
+  # etc.
+```
+
+### Required Environment Variables
+
+- `GOOGLE_API_KEY` — API key for Google AI (Gemini). Get free tier at [ai.google.dev](https://ai.google.dev)
+- Optional: `APP_CHAT_PROVIDER`, `GOOGLE_GENAI_MODEL`
+
+To add OpenAI or other providers:
+1. Create new `@Configuration` class with `@ConditionalOnProperty`
+2. Build ChatModel and ChatClient beans
+3. Set `APP_CHAT_PROVIDER=openai` (or similar)
+
+## Build & Test
 
 ```bash
-# Run all servers (each in separate terminal)
-./gradlew :a2a-server:a2a-order-server:bootRun
-./gradlew :a2a-server:a2a-delivery-server:bootRun
-./gradlew :a2a-server:a2a-payment-server:bootRun
-./gradlew :a2a-client:bootRun
-
-# Build
+# Full build (includes javadoc validation)
 ./gradlew build
 
-# Test
+# Just JavaDoc validation
+./gradlew javadoc
+
+# Run all tests
 ./gradlew test
 
-# Test single module
+# Run specific module
 ./gradlew :a2a-client:test
 ```
 
-**Required environment variable:** `GOOGLE_API_KEY` (used for LLM routing in the client when `app.chat.provider=google-genai`)
+## Session-Based Chat API
 
-## Architecture
+### Endpoint: POST /chat
 
-### Communication Flow
+Request/Response use `ChatRequest` and `ChatResponse` records:
+- `message` (required): User query
+- `sessionId` (optional): Provide to continue existing conversation
+- `memberId` (optional): User context (for order queries)
 
+Response includes:
+- `response`: LLM-generated reply
+- `sessionId`: Session identifier (reuse for follow-up messages)
+
+### Multi-Turn Conversation
+
+Memory window: 20 most recent messages per session.
+
+```bash
+# Query 1: New session (no sessionId)
+curl -X POST http://localhost:8080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"ORD-1001 취소 가능해?","memberId":"user1"}'
+# Response includes sessionId
+
+# Query 2: Continue (same sessionId)
+curl -X POST http://localhost:8080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"그럼 배송은?","sessionId":"<from-response>"}'
 ```
-User → A2A Client (8080) → [LLM intent extraction] → Order Agent (8081)
-                                                    → Delivery Agent (8082)
-                                                          ↕ ROLE_AGENT
-                                                    Payment Agent (8083)
-```
-
-- **Client → Agents:** Standard A2A Protocol calls with `Message.Role.ROLE_USER` and natural language messages
-- **Agent → Agent:** `Message.Role.ROLE_AGENT` with just the identifier (e.g. `TRACK-xxx`, `ORD-xxx`). Server reads `role` from JSON body to set `isInternalCall` flag.
-- **Parallel calls:** Order Agent calls Delivery + Payment Agents concurrently with a configurable timeout (`a2a.client.timeout-seconds`)
-
-### Key Patterns
-
-**Skill Executors** (`*SkillExecutor.java`): Each agent implements `SkillExecutor` to handle incoming A2A requests. Internal vs. external calls are distinguished by the `isInternalCall` boolean (derived from `Message.Role.ROLE_AGENT` in the request body), **not** string prefixes.
-
-**Agent Clients** (`A2a*Client.java`): Typed HTTP clients that wrap A2A Protocol calls to other agents. Use `A2A.toUserMessage(text)` and `A2A.toAgentMessage(text)` SDK utilities to build messages instead of the verbose `Message.builder()` chain. Input/output modes are specified as `List.of("text")` string literals.
-
-**In-memory databases** (`*Database.java`): Static `ConcurrentHashMap` with hardcoded sample data. No persistence layer.
-
-### Sample Data
-
-- Orders: `ORD-1001`, `ORD-2002`, `ORD-3003`
-- Tracking numbers: `TRACK-1001`, `TRACK-2002`, `TRACK-3003`
-- Payments reference order IDs
-
-### LLM Configuration
-
-The client uses Spring AI with a selectable chat provider. Default is Google GenAI (Gemini) via `app.chat.provider=google-genai`. Configure via `application.yml`:
-
-```yaml
-app.chat.provider: ${APP_CHAT_PROVIDER:google-genai}
-spring.ai.google.genai.api-key: ${GOOGLE_API_KEY}
-spring.ai.google.genai.chat.options.model: ${GOOGLE_GENAI_MODEL:gemini-2.5-flash-lite}
-spring.ai.google.genai.chat.options.temperature: 0.7
-```
-
-To add another provider (e.g. OpenAI) later, add a Config with `@ConditionalOnProperty(name = "app.chat.provider", havingValue = "openai")` and set `app.chat.provider=openai` to use it.
 
 ## Technology Stack
 
-- **Java 17**, **Spring Boot 3.3.5**, **Gradle**
-- **Spring AI 1.1.2** — LLM integration (default: Google GenAI; provider selectable via `app.chat.provider`)
-- **A2A Java SDK 1.0.0.Alpha3** — Agent-to-Agent protocol
+- **Java 17**, **Spring Boot 3.3.5**, **Gradle 9.3**
+- **Spring AI 1.1.2** — ChatClient (Google Gemini integration)
+- **A2A Java SDK 1.0.0.Alpha3** — A2A Protocol (JSON-RPC)
 - **Gson 2.13.2** — JSON parsing
-- **Lombok** — boilerplate reduction
+- **Lombok** — Boilerplate reduction
 
-## API Examples
+## Best Practices (Established in This Project)
 
-세션 기반 채팅: `POST /chat`. 요청에 `message`(필수), `sessionId`(선택)를 보내고, 응답에 `response`, `sessionId`가 내려옵니다. 같은 `sessionId`로 계속 보내면 대화가 이어집니다.
-
-```bash
-# 새 세션으로 주문 취소 문의 (sessionId 없음 → 응답에 새 sessionId 포함)
-curl -X POST http://localhost:8080/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "ORD-1001 취소 가능해?"}'
-
-# 같은 세션으로 이어서 배송 조회 (위에서 받은 sessionId 사용)
-curl -X POST http://localhost:8080/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "TRACK-1001 배송 어디쯤이야?", "sessionId": "<응답에서 받은 sessionId>"}'
-```
+1. **Standard A2A Pattern:** All agent-to-agent calls use `Message.Role.ROLE_AGENT` + identifier parsing, never string prefixes
+2. **Agent Card Caching:** Resolve agent cards once at startup, cache in volatile field with synchronized double-check
+3. **Timeout Centralization:** All A2A client calls use `a2a.client.timeout-seconds` property
+4. **JavaDoc Standard:** All public APIs have English documentation (class, method, record level)
+5. **Internal Response Format:** Agents respond with structured key:value lines for internal calls
+6. **Error Handling:** Wrap executor calls in try/catch, return `TaskStatus(TASK_STATE_FAILED)` on exception
+7. **Session Memory:** Use ChatMemory advisor pattern for multi-turn context (not manual state)
