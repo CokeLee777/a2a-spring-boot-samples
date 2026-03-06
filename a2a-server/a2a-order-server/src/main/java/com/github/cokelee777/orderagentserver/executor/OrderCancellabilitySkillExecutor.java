@@ -12,6 +12,21 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+/**
+ * Skill executor for determining order cancellation eligibility.
+ * <p>
+ * This executor handles external user requests to check if an order can be cancelled. It
+ * implements a parallel calling mechanism to query both the delivery and payment agents
+ * concurrently, then combines their responses to determine cancellation eligibility.
+ * </p>
+ * <p>
+ * An order is cancellable only if:
+ * </p>
+ * <ul>
+ * <li>The delivery status is neither "배송중" (in transit) nor "배송완료" (delivered)</li>
+ * <li>The payment status indicates the order is refund-eligible</li>
+ * </ul>
+ */
 @Slf4j
 @Component
 public class OrderCancellabilitySkillExecutor implements SkillExecutor {
@@ -23,12 +38,26 @@ public class OrderCancellabilitySkillExecutor implements SkillExecutor {
 	@Value("${a2a.client.timeout-seconds:12}")
 	private int timeoutSeconds;
 
+	/**
+	 * Constructs an OrderCancellabilitySkillExecutor with agent clients.
+	 * @param deliveryAgentClient the client for calling the delivery agent
+	 * @param paymentAgentClient the client for calling the payment agent
+	 */
 	public OrderCancellabilitySkillExecutor(A2aDeliveryAgentClient deliveryAgentClient,
 			A2aPaymentAgentClient paymentAgentClient) {
 		this.deliveryAgentClient = deliveryAgentClient;
 		this.paymentAgentClient = paymentAgentClient;
 	}
 
+	/**
+	 * Determines whether this executor can handle cancellation eligibility queries.
+	 * <p>
+	 * This executor handles external requests containing an order number (ORD-xxx).
+	 * </p>
+	 * @param userMessage the user message text
+	 * @param isInternalCall whether this is an internal agent-to-agent call
+	 * @return true if the message contains "ORD-" prefix and is not an internal call
+	 */
 	@Override
 	public boolean canHandle(String userMessage, boolean isInternalCall) {
 		if (isInternalCall)
@@ -41,6 +70,30 @@ public class OrderCancellabilitySkillExecutor implements SkillExecutor {
 		return false;
 	}
 
+	/**
+	 * Executes the cancellation eligibility check using parallel agent calls.
+	 * <p>
+	 * This method:
+	 * </p>
+	 * <ol>
+	 * <li>Extracts the order number from the user message</li>
+	 * <li>Looks up the order in the database</li>
+	 * <li>Initiates two parallel calls:
+	 * <ul>
+	 * <li>Calls the payment agent to check refund eligibility</li>
+	 * <li>Calls the delivery agent to check delivery status (if tracking number
+	 * exists)</li>
+	 * </ul>
+	 * </li>
+	 * <li>Waits for both calls to complete within the configured timeout period</li>
+	 * <li>Combines the responses to determine overall cancellation eligibility</li>
+	 * <li>Returns a detailed report with the cancellation status and reasons</li>
+	 * </ol>
+	 * @param userMessage the user message text containing the order number (ORD-xxx)
+	 * @param isInternalCall whether this is an internal agent-to-agent call
+	 * @return a formatted report detailing the cancellation eligibility status and
+	 * reasons
+	 */
 	@Override
 	public String execute(String userMessage, boolean isInternalCall) {
 		String orderNumber = extractOrderNumber(userMessage);
@@ -102,6 +155,16 @@ public class OrderCancellabilitySkillExecutor implements SkillExecutor {
 		}
 	}
 
+	/**
+	 * Extracts the order number from a message.
+	 * <p>
+	 * Searches for a word starting with "ORD-" and returns it. If no such word is found,
+	 * returns the trimmed message.
+	 * </p>
+	 * @param text the message text
+	 * @return the extracted order number, or the trimmed text if no order number pattern
+	 * is found
+	 */
 	private String extractOrderNumber(String text) {
 		for (String word : text.split("\\s+")) {
 			if (word.startsWith("ORD-")) {

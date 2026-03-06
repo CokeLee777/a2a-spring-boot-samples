@@ -7,9 +7,30 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
 
+/**
+ * Configuration bean producer for the order agent's card.
+ * <p>
+ * This class creates and configures the {@code AgentCard} that describes the order
+ * agent's capabilities, endpoints, and available skills.
+ * </p>
+ */
 @Configuration
 public class OrderAgentCardProducer {
 
+	/**
+	 * Produces the order agent card bean.
+	 * <p>
+	 * The card describes:
+	 * </p>
+	 * <ul>
+	 * <li>Agent name: "Order Agent"</li>
+	 * <li>Available skills: order_list and order_cancellability_check</li>
+	 * <li>Communication protocol: JSON-RPC</li>
+	 * <li>Supported I/O modes: text</li>
+	 * </ul>
+	 * @param serverPort the port on which this agent listens
+	 * @return a configured {@code AgentCard} instance
+	 */
 	@Bean
 	public AgentCard orderAgentCard(@Value("${server.port}") int serverPort) {
 		final String AGENT_URL = String.format("http://localhost:%s/a2a", serverPort);

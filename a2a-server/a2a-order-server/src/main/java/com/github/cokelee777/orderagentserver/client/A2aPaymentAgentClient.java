@@ -22,7 +22,12 @@ import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
 
 /**
- * A2A 프로토콜을 사용해 결제 에이전트에 메시지를 보내 환불 가능 여부를 조회합니다.
+ * A2A Protocol client for communicating with the payment agent.
+ * <p>
+ * This component sends agent-to-agent requests to the payment agent to query payment and
+ * refund eligibility for orders. It uses the A2A Java SDK to manage the communication
+ * protocol and handles responses from the payment agent.
+ * </p>
  */
 @Slf4j
 @Component
@@ -37,10 +42,22 @@ public class A2aPaymentAgentClient {
 	@Value("${a2a.client.timeout-seconds}")
 	private int timeoutSeconds;
 
+	/**
+	 * Constructs a payment agent client with the payment agent's base URL.
+	 * @param paymentAgentBaseUrl the base URL of the payment agent
+	 */
 	public A2aPaymentAgentClient(@Value("${order-agent.payment-agent-url}") String paymentAgentBaseUrl) {
 		this.paymentAgentBaseUrl = paymentAgentBaseUrl;
 	}
 
+	/**
+	 * Resolves and caches the agent card for the payment agent.
+	 * <p>
+	 * The agent card is resolved once and cached for subsequent requests. This method
+	 * uses double-checked locking to ensure thread-safe initialization.
+	 * </p>
+	 * @return the resolved agent card for the payment agent
+	 */
 	private AgentCard resolveAgentCard() {
 		if (paymentAgentCard == null) {
 			synchronized (this) {
@@ -55,7 +72,15 @@ public class A2aPaymentAgentClient {
 	}
 
 	/**
-	 * 결제 에이전트에 A2A sendMessage로 해당 주문의 환불 가능 여부를 조회합니다.
+	 * Retrieves payment and refund eligibility status for an order.
+	 * <p>
+	 * Sends an agent-to-agent request to the payment agent with the order number and
+	 * returns the refund eligibility status. If the request fails or times out, returns a
+	 * response indicating the order is not refund-eligible.
+	 * </p>
+	 * @param orderNumber the order number to query
+	 * @return a PaymentStatusResponse containing the order number and refund eligibility
+	 * status
 	 */
 	public PaymentStatusResponse getPaymentStatus(String orderNumber) {
 		try {
@@ -106,6 +131,12 @@ public class A2aPaymentAgentClient {
 		}
 	}
 
+	/**
+	 * Response record containing payment status information for an order.
+	 *
+	 * @param orderNumber the order number that was queried
+	 * @param refundEligible whether the order is eligible for refund
+	 */
 	public record PaymentStatusResponse(String orderNumber, boolean refundEligible) {
 	}
 

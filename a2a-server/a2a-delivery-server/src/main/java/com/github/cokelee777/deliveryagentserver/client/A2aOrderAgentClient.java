@@ -10,7 +10,11 @@ import io.a2a.client.http.A2AHttpClient;
 import io.a2a.client.http.A2AHttpClientFactory;
 import io.a2a.client.transport.jsonrpc.JSONRPCTransport;
 import io.a2a.client.transport.jsonrpc.JSONRPCTransportConfig;
-import io.a2a.spec.*;
+import io.a2a.spec.AgentCard;
+import io.a2a.spec.Message;
+import io.a2a.spec.Task;
+import io.a2a.spec.TaskState;
+import io.a2a.spec.TextPart;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -23,7 +27,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 /**
- * A2A 프로토콜을 사용해 주문 에이전트에 메시지를 보내 주문 정보를 조회합니다.
+ * A2A client for communicating with the order agent.
+ * <p>
+ * This client sends internal requests to the order agent to retrieve order information by
+ * tracking number, enriching delivery responses with order details.
+ * </p>
  */
 @Slf4j
 @Component
@@ -36,10 +44,18 @@ public class A2aOrderAgentClient {
 	@Value("${a2a.client.timeout-seconds}")
 	private int timeoutSeconds;
 
+	/**
+	 * Constructs an A2aOrderAgentClient with the order agent URL.
+	 * @param orderAgentBaseUrl the base URL of the order agent
+	 */
 	public A2aOrderAgentClient(@Value("${delivery-agent.order-agent-url}") String orderAgentBaseUrl) {
 		this.orderAgentBaseUrl = orderAgentBaseUrl;
 	}
 
+	/**
+	 * Resolves and caches the order agent card.
+	 * @return the cached or newly resolved {@code AgentCard}
+	 */
 	private AgentCard resolveAgentCard() {
 		if (orderAgentCard == null) {
 			synchronized (this) {
@@ -54,7 +70,10 @@ public class A2aOrderAgentClient {
 	}
 
 	/**
-	 * 주문 에이전트에 A2A sendMessage로 운송장번호에 해당하는 주문 정보를 조회합니다.
+	 * Retrieves order information by tracking number from the order agent.
+	 * @param trackingNumber the tracking number to query
+	 * @return an OrderInfoResponse containing order details, or null if not found or on
+	 * error
 	 */
 	public OrderInfoResponse getOrderInfo(String trackingNumber) {
 		try {
@@ -114,6 +133,15 @@ public class A2aOrderAgentClient {
 		}
 	}
 
+	/**
+	 * Represents order information retrieved from the order agent.
+	 *
+	 * @param orderNumber the order number
+	 * @param productName the product name
+	 * @param status the order status
+	 * @param orderDate the order date
+	 * @param trackingNumber the tracking number associated with this order
+	 */
 	public record OrderInfoResponse(String orderNumber, String productName, String status, String orderDate,
 			String trackingNumber) {
 	}

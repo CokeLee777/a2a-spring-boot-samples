@@ -17,15 +17,37 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * REST controller for executing A2A Protocol requests on the delivery agent.
+ * <p>
+ * This controller processes incoming A2A SEND_MESSAGE requests, routes them to the
+ * appropriate skill executor, and returns task responses.
+ * </p>
+ */
 @RestController
 public class DeliveryAgentExecutorProducer {
 
 	private final List<SkillExecutor> skillExecutors;
 
+	/**
+	 * Constructs a DeliveryAgentExecutorProducer with a list of skill executors.
+	 * @param skillExecutors list of available skill executors
+	 */
 	public DeliveryAgentExecutorProducer(List<SkillExecutor> skillExecutors) {
 		this.skillExecutors = skillExecutors;
 	}
 
+	/**
+	 * Handles A2A Protocol requests.
+	 * <p>
+	 * This endpoint accepts JSON-RPC requests with the SEND_MESSAGE method, extracts the
+	 * message content, determines if it's an internal agent call, and routes it to an
+	 * appropriate skill executor.
+	 * </p>
+	 * @param body the JSON-RPC request body
+	 * @return a {@code ResponseEntity} containing the task response
+	 * @throws JsonProcessingException if JSON processing fails
+	 */
 	@PostMapping(value = "/a2a", consumes = MediaType.APPLICATION_JSON_VALUE,
 			produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<String> execute(@RequestBody String body) throws JsonProcessingException {
@@ -66,6 +88,12 @@ public class DeliveryAgentExecutorProducer {
 		return ResponseEntity.ok(JsonUtil.toJson(new SendMessageResponse(requestId, task)));
 	}
 
+	/**
+	 * Routes the user text to an appropriate skill executor.
+	 * @param userText the user message text
+	 * @param isInternalCall whether this is an internal agent-to-agent call
+	 * @return the result from the executor or a fallback error message
+	 */
 	private String routeToExecutor(String userText, boolean isInternalCall) {
 		for (SkillExecutor executor : skillExecutors) {
 			if (executor.canHandle(userText, isInternalCall)) {
@@ -75,6 +103,11 @@ public class DeliveryAgentExecutorProducer {
 		return "배송 조회는 운송장번호(TRACK-)를 포함해 주세요. 예: TRACK-1001 배송 조회해줘";
 	}
 
+	/**
+	 * Extracts the text message from the A2A Protocol request parameters.
+	 * @param params the params object containing the message
+	 * @return the extracted text, or an empty string if not found
+	 */
 	private String extractText(JsonObject params) {
 		JsonObject message = params.getAsJsonObject("message");
 		if (message == null)
@@ -91,6 +124,11 @@ public class DeliveryAgentExecutorProducer {
 		return "";
 	}
 
+	/**
+	 * Extracts the request ID from the JSON-RPC request.
+	 * @param request the JSON-RPC request object
+	 * @return the request ID as an integer, string, or null
+	 */
 	private Object extractId(JsonObject request) {
 		var idElement = request.get("id");
 		if (idElement == null || idElement.isJsonNull())
@@ -101,6 +139,11 @@ public class DeliveryAgentExecutorProducer {
 		return prim.getAsString();
 	}
 
+	/**
+	 * Extracts the message role from the request parameters.
+	 * @param params the params object
+	 * @return the role string, or an empty string if not found
+	 */
 	private String extractRole(JsonObject params) {
 		JsonObject message = params.getAsJsonObject("message");
 		if (message == null)

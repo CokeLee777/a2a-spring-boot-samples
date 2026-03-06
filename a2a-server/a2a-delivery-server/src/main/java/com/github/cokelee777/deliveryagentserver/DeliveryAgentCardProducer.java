@@ -8,9 +8,30 @@ import org.springframework.context.annotation.Configuration;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Configuration bean producer for the delivery agent's card.
+ * <p>
+ * This class creates and configures the {@code AgentCard} that describes the delivery
+ * agent's capabilities, endpoints, and available skills.
+ * </p>
+ */
 @Configuration
 public class DeliveryAgentCardProducer {
 
+	/**
+	 * Produces the delivery agent card bean.
+	 * <p>
+	 * The card describes:
+	 * </p>
+	 * <ul>
+	 * <li>Agent name: "Delivery Tracking Agent"</li>
+	 * <li>Available skill: track_delivery (shipping status lookup)</li>
+	 * <li>Communication protocol: JSON-RPC</li>
+	 * <li>Supported I/O modes: text</li>
+	 * </ul>
+	 * @param serverPort the port on which this agent listens
+	 * @return a configured {@code AgentCard} instance
+	 */
 	@Bean
 	public AgentCard deliveryAgentCard(@Value("${server.port}") int serverPort) {
 		final String AGENT_URL = String.format("http://localhost:%s/a2a", serverPort);

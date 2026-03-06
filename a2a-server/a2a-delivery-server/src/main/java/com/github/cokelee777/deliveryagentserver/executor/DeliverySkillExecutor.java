@@ -4,11 +4,23 @@ import com.github.cokelee777.deliveryagentserver.client.A2aOrderAgentClient;
 import com.github.cokelee777.deliveryagentserver.db.DeliveryDatabase;
 import org.springframework.stereotype.Component;
 
+/**
+ * Skill executor for delivery tracking functionality.
+ * <p>
+ * This executor handles delivery status queries by tracking number. For external calls,
+ * it enriches the response with order information. For internal calls, it returns only
+ * the delivery status.
+ * </p>
+ */
 @Component
 public class DeliverySkillExecutor implements SkillExecutor {
 
 	private final A2aOrderAgentClient orderAgentClient;
 
+	/**
+	 * Constructs a DeliverySkillExecutor with an order agent client.
+	 * @param orderAgentClient the client for communicating with the order agent
+	 */
 	public DeliverySkillExecutor(A2aOrderAgentClient orderAgentClient) {
 		this.orderAgentClient = orderAgentClient;
 	}
@@ -45,6 +57,11 @@ public class DeliverySkillExecutor implements SkillExecutor {
 		return baseResult;
 	}
 
+	/**
+	 * Extracts the tracking number from the message text.
+	 * @param text the message text
+	 * @return the tracking number if found, otherwise the trimmed message
+	 */
 	private String extractTrackingNumber(String text) {
 		for (String word : text.split("\\s+")) {
 			if (word.startsWith("TRACK-")) {

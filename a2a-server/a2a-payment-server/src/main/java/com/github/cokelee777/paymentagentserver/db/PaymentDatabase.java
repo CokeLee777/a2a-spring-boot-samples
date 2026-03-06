@@ -4,8 +4,10 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 주문번호별 결제·환불 상태 (데모용 인메모리). 주문 에이전트가 "[A2A-INTERNAL] payment-status ORD-xxx" 로 조회 시 환불
- * 가능 여부를 반환합니다.
+ * In-memory database for payment information.
+ * <p>
+ * This class maintains a static collection of payment records indexed by order number.
+ * </p>
  */
 public class PaymentDatabase {
 
@@ -13,16 +15,36 @@ public class PaymentDatabase {
 			new PaymentInfo("ORD-1001", "결제완료", true), "ORD-2002", new PaymentInfo("ORD-2002", "결제완료", true),
 			"ORD-3003", new PaymentInfo("ORD-3003", "환불처리중", false));
 
+	/**
+	 * Finds payment information by order number.
+	 * @param orderNumber the order number to search for
+	 * @return an Optional containing the payment info, or empty if not found
+	 */
 	public static Optional<PaymentInfo> findByOrderNumber(String orderNumber) {
 		return Optional.ofNullable(PAYMENTS.get(orderNumber));
 	}
 
-	/** A2A 내부 응답용: refundEligible 한 줄 (주문 에이전트가 파싱) */
+	/**
+	 * Retrieves refund eligibility status in A2A response format.
+	 * <p>
+	 * Returns a single line formatted as "refundEligible:true|false" for internal A2A
+	 * consumption by the order agent.
+	 * </p>
+	 * @param orderNumber the order number to query
+	 * @return a formatted string with refund eligibility status
+	 */
 	public static String getRefundEligibleLine(String orderNumber) {
 		return findByOrderNumber(orderNumber).map(p -> "refundEligible:" + p.refundEligible())
 			.orElse("refundEligible:false");
 	}
 
+	/**
+	 * Represents payment information for an order.
+	 *
+	 * @param orderNumber the unique order number
+	 * @param status the current payment status (e.g., "결제완료", "환불처리중")
+	 * @param refundEligible whether the order is eligible for refund
+	 */
 	public record PaymentInfo(String orderNumber, String status, boolean refundEligible) {
 	}
 

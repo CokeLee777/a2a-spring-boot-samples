@@ -23,7 +23,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * A2A 프로토콜을 사용해 배송 에이전트에 메시지를 보내 배송 상태를 조회합니다.
+ * A2A Protocol client for communicating with the delivery agent.
+ * <p>
+ * This component sends agent-to-agent requests to the delivery agent to query delivery
+ * status for shipments. It uses the A2A Java SDK to manage the communication protocol and
+ * handles responses from the delivery agent.
+ * </p>
  */
 @Slf4j
 @Component
@@ -38,10 +43,22 @@ public class A2aDeliveryAgentClient {
 	@Value("${a2a.client.timeout-seconds}")
 	private int timeoutSeconds;
 
+	/**
+	 * Constructs a delivery agent client with the delivery agent's base URL.
+	 * @param deliveryAgentBaseUrl the base URL of the delivery agent
+	 */
 	public A2aDeliveryAgentClient(@Value("${order-agent.delivery-agent-url}") String deliveryAgentBaseUrl) {
 		this.deliveryAgentBaseUrl = deliveryAgentBaseUrl;
 	}
 
+	/**
+	 * Resolves and caches the agent card for the delivery agent.
+	 * <p>
+	 * The agent card is resolved once and cached for subsequent requests. This method
+	 * uses double-checked locking to ensure thread-safe initialization.
+	 * </p>
+	 * @return the resolved agent card for the delivery agent
+	 */
 	private AgentCard resolveAgentCard() {
 		if (deliveryAgentCard == null) {
 			synchronized (this) {
@@ -56,7 +73,14 @@ public class A2aDeliveryAgentClient {
 	}
 
 	/**
-	 * 배송 에이전트에 A2A sendMessage로 배송 상태를 조회합니다. 주문 취소 가능 여부 판단에 사용합니다.
+	 * Retrieves delivery status information for a shipment.
+	 * <p>
+	 * Sends an agent-to-agent request to the delivery agent with the tracking number and
+	 * returns the delivery status. If the request fails or times out, returns null.
+	 * </p>
+	 * @param trackingNumber the tracking number to query
+	 * @return a DeliveryStatusResponse containing the tracking number and delivery
+	 * status, or null if the request fails
 	 */
 	public DeliveryStatusResponse getDeliveryStatus(String trackingNumber) {
 		try {
@@ -107,6 +131,13 @@ public class A2aDeliveryAgentClient {
 		}
 	}
 
+	/**
+	 * Response record containing delivery status information for a shipment.
+	 *
+	 * @param trackingNumber the tracking number that was queried
+	 * @param status the current delivery status (e.g., "배송중", "배송완료", "상품준비중")
+	 * @param detail additional detail information about the delivery (may be null)
+	 */
 	public record DeliveryStatusResponse(String trackingNumber, String status, String detail) {
 	}
 
