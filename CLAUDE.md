@@ -88,14 +88,16 @@ To add another provider (e.g. OpenAI) later, add a Config with `@ConditionalOnPr
 
 ## API Examples
 
+세션 기반 채팅: `POST /chat`. 요청에 `message`(필수), `sessionId`(선택)를 보내고, 응답에 `response`, `sessionId`가 내려옵니다. 같은 `sessionId`로 계속 보내면 대화가 이어집니다.
+
 ```bash
-# Order cancellation check (Korean natural language)
-curl -X POST http://localhost:8080/api/chat \
+# 새 세션으로 주문 취소 문의 (sessionId 없음 → 응답에 새 sessionId 포함)
+curl -X POST http://localhost:8080/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "ORD-1001 취소 가능해?"}'
 
-# Delivery tracking
-curl -X POST http://localhost:8080/api/chat \
+# 같은 세션으로 이어서 배송 조회 (위에서 받은 sessionId 사용)
+curl -X POST http://localhost:8080/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "TRACK-1001 배송 어디쯤이야?"}'
+  -d '{"message": "TRACK-1001 배송 어디쯤이야?", "sessionId": "<응답에서 받은 sessionId>"}'
 ```

@@ -4,7 +4,9 @@ import com.github.cokelee777.a2aclient.tools.A2aTools;
 import com.google.genai.Client;
 import io.micrometer.observation.ObservationRegistry;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.google.genai.GoogleGenAiChatModel;
 import org.springframework.ai.google.genai.GoogleGenAiChatOptions;
@@ -41,11 +43,11 @@ public class GoogleGenAiChatModelConfig {
 	}
 
 	@Bean
-	public <T extends A2aTools> ChatClient chatClient(ChatModel chatModel, List<T> tools) {
+	public <T extends A2aTools> ChatClient chatClient(ChatModel chatModel, ChatMemory chatMemory, List<T> tools) {
 		return ChatClient.builder(chatModel)
 			.defaultSystem(SYSTEM_PROMPT)
 			.defaultTools(tools.toArray())
-			.defaultAdvisors(new SimpleLoggerAdvisor())
+			.defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build(), new SimpleLoggerAdvisor())
 			.build();
 	}
 
