@@ -18,12 +18,16 @@ public class ChatOrchestrator {
 	 */
 	public ChatResponse handle(ChatRequest request) {
 		try {
+			String userMessage = request.message();
+			if (request.memberId() != null && !request.memberId().isBlank()) {
+				userMessage = "[현재 사용자 ID: " + request.memberId() + "]\n\n" + userMessage;
+			}
 			String content = chatClient.prompt()
 				.advisors(a -> a.param(ChatMemory.CONVERSATION_ID, request.sessionId()))
-				.user(request.message())
+				.user(userMessage)
 				.call()
 				.content();
-			return new ChatResponse(content, request.sessionId());
+			return new ChatResponse(request.sessionId(), content);
 		}
 		catch (Exception e) {
 			String fallback = "처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";

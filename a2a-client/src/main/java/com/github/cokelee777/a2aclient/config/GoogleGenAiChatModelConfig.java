@@ -26,8 +26,9 @@ public class GoogleGenAiChatModelConfig {
 
 	private static final String SYSTEM_PROMPT = """
 			당신은 주문/배송 고객 지원 에이전트입니다.
-			주문 취소 문의는 checkOrderCancellability 도구를,
-			배송 조회 문의는 trackDelivery 도구를 사용하세요.
+			- 주문 내역/목록 조회(예: "내 주문 보여줘", "주문 목록"): 현재 사용자 ID가 주어지면 getOrderList 도구에 해당 memberId를 넣어 호출하세요.
+			- 주문 취소 가능 여부: checkOrderCancellability 도구에 주문번호(ORD-xxxx)를 넣어 호출하세요. 이전 대화에서 나온 주문번호를 사용할 수 있습니다.
+			- 배송 조회: trackDelivery 도구에 운송장번호(TRACK-xxxx)를 넣어 호출하세요.
 			""";
 
 	@Bean
