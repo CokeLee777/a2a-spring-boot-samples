@@ -24,9 +24,29 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
+/**
+ * Abstract base class for A2A (Agent-to-Agent) protocol tools.
+ * <p>
+ * This class provides common functionality for communicating with remote agents via the
+ * A2A Protocol over JSON-RPC. Subclasses implement specific agent operations by extending
+ * this base and using the {@link #sendRequest(String)} method.
+ * </p>
+ * <p>
+ * Features:
+ * </p>
+ * <ul>
+ * <li>Lazy initialization and caching of agent cards</li>
+ * <li>Configurable request timeout via {@code a2a.client.timeout-seconds}</li>
+ * <li>Error handling with fallback messages</li>
+ * <li>Support for streaming responses with task event processing</li>
+ * </ul>
+ */
 @Slf4j
-public abstract class A2aTools {
+public abstract class A2aTool {
 
+	/**
+	 * Default client configuration that accepts text-based output modes.
+	 */
 	protected static final ClientConfig CLIENT_CONFIG = new ClientConfig.Builder()
 		.setAcceptedOutputModes(List.of("text"))
 		.build();
@@ -38,10 +58,29 @@ public abstract class A2aTools {
 	@Value("${a2a.client.timeout-seconds}")
 	private int timeoutSeconds;
 
-	protected A2aTools(String agentUrl) {
+	/**
+	 * Constructs an A2aTools instance with the target agent URL.
+	 * @param agentUrl the base URL of the target agent
+	 */
+	protected A2aTool(String agentUrl) {
 		this.agentUrl = agentUrl;
 	}
 
+	/**
+	 * Sends a request to the remote agent and retrieves the response.
+	 * <p>
+	 * This method:
+	 * </p>
+	 * <ol>
+	 * <li>Establishes a connection to the agent using the A2A Protocol</li>
+	 * <li>Sends the user message to the agent</li>
+	 * <li>Waits for the task completion with a configurable timeout</li>
+	 * <li>Extracts and returns the text response from task artifacts</li>
+	 * <li>Returns an error message if the agent fails or the request times out</li>
+	 * </ol>
+	 * @param text the request message to send to the agent
+	 * @return the response text from the agent, or an error message if the request fails
+	 */
 	protected String sendRequest(String text) {
 		try {
 			CompletableFuture<String> resultFuture = new CompletableFuture<>();
@@ -79,6 +118,15 @@ public abstract class A2aTools {
 		}
 	}
 
+	/**
+	 * Resolves and caches the agent card for the target agent.
+	 * <p>
+	 * The agent card is fetched from the remote agent's well-known endpoint and cached in
+	 * memory to avoid repeated HTTP requests. Initialization is synchronized to ensure
+	 * thread-safe lazy loading.
+	 * </p>
+	 * @return the cached or newly resolved {@code AgentCard} for this agent
+	 */
 	private AgentCard resolveAgentCard() {
 		AgentCard card = agentCardRef.get();
 		if (card == null) {

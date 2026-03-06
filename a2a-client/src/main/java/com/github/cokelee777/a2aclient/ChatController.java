@@ -8,6 +8,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * REST controller for handling chat requests.
+ * <p>
+ * This controller exposes a single endpoint for chat interactions. It delegates the
+ * actual chat processing to {@link ChatOrchestrator} and provides error handling with
+ * appropriate HTTP status codes.
+ * </p>
+ */
 @RestController
 @RequiredArgsConstructor
 public class ChatController {
@@ -15,11 +23,15 @@ public class ChatController {
 	private final ChatOrchestrator chatOrchestrator;
 
 	/**
-	 * 세션 기반 채팅. 같은 sessionId로 요청하면 대화 이력이 유지됩니다.
+	 * Handles a chat request and returns a response.
 	 * <p>
-	 * 요청 Body: {@code message}(필수), {@code sessionId}(선택, 없으면 새 세션 생성),
-	 * {@code memberId}(선택, 있으면 해당 회원의 주문내역·취소 가능 여부 조회 시 사용). 응답 Body:
-	 * {@code response}(에이전트 응답 텍스트), {@code sessionId}(이번 요청에 사용된 세션 ID).
+	 * This endpoint accepts a chat request with a message and optional session ID. It
+	 * maintains conversation context across multiple requests using the session ID. If an
+	 * unexpected error occurs, it returns a 500 status with an error message.
+	 * </p>
+	 * @param request the chat request containing message and optional session ID
+	 * @return a {@code ResponseEntity} containing the chat response with the same session
+	 * ID
 	 */
 	@PostMapping(value = "/chat", consumes = MediaType.APPLICATION_JSON_VALUE,
 			produces = MediaType.APPLICATION_JSON_VALUE)
