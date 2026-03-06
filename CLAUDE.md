@@ -12,6 +12,7 @@ A multi-module Spring Boot application demonstrating **Agent-to-Agent (A2A) Prot
 - ✅ Spring AI ChatClient integration with Google Gemini 2.5-flash-lite
 - ✅ Parallel agent coordination (concurrent Delivery + Payment calls)
 - ✅ gradle javadoc validation passes (no errors/warnings)
+- ✅ checkFormat validation passes (Spring Java Format compliant)
 
 ## Module Structure & Ports
 
@@ -211,14 +212,20 @@ To add OpenAI or other providers:
 2. Build ChatModel and ChatClient beans
 3. Set `APP_CHAT_PROVIDER=openai` (or similar)
 
-## Build & Test
+## Build, Test & Code Quality
 
 ```bash
 # Full build (includes javadoc validation)
 ./gradlew build
 
-# Just JavaDoc validation
+# JavaDoc validation (0 errors/warnings expected)
 ./gradlew javadoc
+
+# Code format validation (Spring Java Format)
+./gradlew checkFormat
+
+# Auto-format code (if checkFormat fails)
+./gradlew format
 
 # Run all tests
 ./gradlew test
@@ -226,6 +233,27 @@ To add OpenAI or other providers:
 # Run specific module
 ./gradlew :a2a-client:test
 ```
+
+### Code Format Standards
+
+This project uses **Spring Java Format** plugin (`io.spring.javaformat 0.0.47`) for consistent code style. All contributions must pass:
+
+```bash
+./gradlew checkFormat
+```
+
+If format issues are found, auto-fix them:
+
+```bash
+./gradlew format
+```
+
+Common style enforcements:
+- 4-space indentation
+- Unix line endings (LF)
+- No trailing whitespace
+- Consistent brace placement
+- Proper import organization
 
 ## Session-Based Chat API
 
@@ -270,7 +298,8 @@ curl -X POST http://localhost:8080/chat \
 1. **Standard A2A Pattern:** All agent-to-agent calls use `Message.Role.ROLE_AGENT` + identifier parsing, never string prefixes
 2. **Agent Card Caching:** Resolve agent cards once at startup, cache in volatile field with synchronized double-check
 3. **Timeout Centralization:** All A2A client calls use `a2a.client.timeout-seconds` property
-4. **JavaDoc Standard:** All public APIs have English documentation (class, method, record level)
-5. **Internal Response Format:** Agents respond with structured key:value lines for internal calls
-6. **Error Handling:** Wrap executor calls in try/catch, return `TaskStatus(TASK_STATE_FAILED)` on exception
-7. **Session Memory:** Use ChatMemory advisor pattern for multi-turn context (not manual state)
+4. **JavaDoc Standard:** All public APIs have English documentation (class, method, record level). Validate with `./gradlew javadoc`
+5. **Code Format Compliance:** All code must pass `./gradlew checkFormat` (Spring Java Format). Run `./gradlew format` to auto-fix
+6. **Internal Response Format:** Agents respond with structured key:value lines for internal calls
+7. **Error Handling:** Wrap executor calls in try/catch, return `TaskStatus(TASK_STATE_FAILED)` on exception
+8. **Session Memory:** Use ChatMemory advisor pattern for multi-turn context (not manual state)
