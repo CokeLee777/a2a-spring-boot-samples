@@ -29,90 +29,85 @@ import java.util.regex.Pattern;
 @Component
 public class A2aDeliveryAgentClient {
 
-    private static final Pattern STATUS_LINE = Pattern.compile("status:(.+)");
+	private static final Pattern STATUS_LINE = Pattern.compile("status:(.+)");
 
-    private final String deliveryAgentBaseUrl;
-    private volatile AgentCard deliveryAgentCard;
+	private final String deliveryAgentBaseUrl;
 
-    @Value("${a2a.client.timeout-seconds}")
-    private int timeoutSeconds;
+	private volatile AgentCard deliveryAgentCard;
 
-    public A2aDeliveryAgentClient(
-            @Value("${order-agent.delivery-agent-url}") String deliveryAgentBaseUrl) {
-        this.deliveryAgentBaseUrl = deliveryAgentBaseUrl;
-    }
+	@Value("${a2a.client.timeout-seconds}")
+	private int timeoutSeconds;
 
-    private AgentCard resolveAgentCard() {
-        if (deliveryAgentCard == null) {
-            synchronized (this) {
-                if (deliveryAgentCard == null) {
-                    A2AHttpClient httpClient = A2AHttpClientFactory.create();
-                    deliveryAgentCard = new A2ACardResolver(httpClient, deliveryAgentBaseUrl, null).getAgentCard();
-                    log.info("Delivery agent card resolved: {}", deliveryAgentCard.name());
-                }
-            }
-        }
-        return deliveryAgentCard;
-    }
+	public A2aDeliveryAgentClient(@Value("${order-agent.delivery-agent-url}") String deliveryAgentBaseUrl) {
+		this.deliveryAgentBaseUrl = deliveryAgentBaseUrl;
+	}
 
-    /**
-     * 배송 에이전트에 A2A sendMessage로 배송 상태를 조회합니다. 주문 취소 가능 여부 판단에 사용합니다.
-     */
-    public DeliveryStatusResponse getDeliveryStatus(String trackingNumber) {
-        try {
-            ClientConfig clientConfig = new ClientConfig.Builder()
-                    .setAcceptedOutputModes(List.of("text"))
-                    .build();
+	private AgentCard resolveAgentCard() {
+		if (deliveryAgentCard == null) {
+			synchronized (this) {
+				if (deliveryAgentCard == null) {
+					A2AHttpClient httpClient = A2AHttpClientFactory.create();
+					deliveryAgentCard = new A2ACardResolver(httpClient, deliveryAgentBaseUrl, null).getAgentCard();
+					log.info("Delivery agent card resolved: {}", deliveryAgentCard.name());
+				}
+			}
+		}
+		return deliveryAgentCard;
+	}
 
-            CompletableFuture<String> resultFuture = new CompletableFuture<>();
-            List<BiConsumer<ClientEvent, AgentCard>> consumers = List.of(
-                    (event, card) -> {
-                        if (event instanceof TaskEvent taskEvent) {
-                            Task task = taskEvent.getTask();
-                            if (TaskState.TASK_STATE_FAILED.equals(task.status().state())) {
-                                resultFuture.complete(null);
-                                return;
-                            }
-                            StringBuilder sb = new StringBuilder();
-                            if (task.artifacts() != null) {
-                                task.artifacts().forEach(artifact ->
-                                        artifact.parts().forEach(part -> {
-                                            if (part instanceof TextPart textPart) {
-                                                sb.append(textPart.text());
-                                            }
-                                        })
-                                );
-                            }
-                            resultFuture.complete(sb.toString());
-                        }
-                    }
-            );
+	/**
+	 * 배송 에이전트에 A2A sendMessage로 배송 상태를 조회합니다. 주문 취소 가능 여부 판단에 사용합니다.
+	 */
+	public DeliveryStatusResponse getDeliveryStatus(String trackingNumber) {
+		try {
+			ClientConfig clientConfig = new ClientConfig.Builder().setAcceptedOutputModes(List.of("text")).build();
 
-            try (Client client = Client
-                    .builder(resolveAgentCard())
-                    .clientConfig(clientConfig)
-                    .withTransport(JSONRPCTransport.class, new JSONRPCTransportConfig())
-                    .addConsumers(consumers)
-                    .build()) {
-                Message message = A2A.toAgentMessage(trackingNumber);
-                client.sendMessage(message);
-            }
+			CompletableFuture<String> resultFuture = new CompletableFuture<>();
+			List<BiConsumer<ClientEvent, AgentCard>> consumers = List.of((event, card) -> {
+				if (event instanceof TaskEvent taskEvent) {
+					Task task = taskEvent.getTask();
+					if (TaskState.TASK_STATE_FAILED.equals(task.status().state())) {
+						resultFuture.complete(null);
+						return;
+					}
+					StringBuilder sb = new StringBuilder();
+					if (task.artifacts() != null) {
+						task.artifacts().forEach(artifact -> artifact.parts().forEach(part -> {
+							if (part instanceof TextPart textPart) {
+								sb.append(textPart.text());
+							}
+						}));
+					}
+					resultFuture.complete(sb.toString());
+				}
+			});
 
-            String responseText = resultFuture.get(timeoutSeconds, TimeUnit.SECONDS);
-            if (responseText == null || responseText.isBlank()) {
-                return null;
-            }
-            Matcher m = STATUS_LINE.matcher(responseText.trim());
-            if (m.find()) {
-                return new DeliveryStatusResponse(trackingNumber, m.group(1).trim(), null);
-            }
-            return null;
-        } catch (Exception e) {
-            log.error("배송 에이전트 호출 실패 (trackingNumber={}): {}", trackingNumber, e.getMessage(), e);
-            return null;
-        }
-    }
+			try (Client client = Client.builder(resolveAgentCard())
+				.clientConfig(clientConfig)
+				.withTransport(JSONRPCTransport.class, new JSONRPCTransportConfig())
+				.addConsumers(consumers)
+				.build()) {
+				Message message = A2A.toAgentMessage(trackingNumber);
+				client.sendMessage(message);
+			}
 
-    public record DeliveryStatusResponse(String trackingNumber, String status, String detail) {
-    }
+			String responseText = resultFuture.get(timeoutSeconds, TimeUnit.SECONDS);
+			if (responseText == null || responseText.isBlank()) {
+				return null;
+			}
+			Matcher m = STATUS_LINE.matcher(responseText.trim());
+			if (m.find()) {
+				return new DeliveryStatusResponse(trackingNumber, m.group(1).trim(), null);
+			}
+			return null;
+		}
+		catch (Exception e) {
+			log.error("배송 에이전트 호출 실패 (trackingNumber={}): {}", trackingNumber, e.getMessage(), e);
+			return null;
+		}
+	}
+
+	public record DeliveryStatusResponse(String trackingNumber, String status, String detail) {
+	}
+
 }

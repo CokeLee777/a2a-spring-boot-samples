@@ -28,90 +28,85 @@ import java.util.regex.Pattern;
 @Component
 public class A2aPaymentAgentClient {
 
-    private static final Pattern REFUND_ELIGIBLE_LINE = Pattern.compile("refundEligible:(true|false)");
+	private static final Pattern REFUND_ELIGIBLE_LINE = Pattern.compile("refundEligible:(true|false)");
 
-    private final String paymentAgentBaseUrl;
-    private volatile AgentCard paymentAgentCard;
+	private final String paymentAgentBaseUrl;
 
-    @Value("${a2a.client.timeout-seconds}")
-    private int timeoutSeconds;
+	private volatile AgentCard paymentAgentCard;
 
-    public A2aPaymentAgentClient(
-            @Value("${order-agent.payment-agent-url}") String paymentAgentBaseUrl) {
-        this.paymentAgentBaseUrl = paymentAgentBaseUrl;
-    }
+	@Value("${a2a.client.timeout-seconds}")
+	private int timeoutSeconds;
 
-    private AgentCard resolveAgentCard() {
-        if (paymentAgentCard == null) {
-            synchronized (this) {
-                if (paymentAgentCard == null) {
-                    A2AHttpClient httpClient = A2AHttpClientFactory.create();
-                    paymentAgentCard = new A2ACardResolver(httpClient, paymentAgentBaseUrl, null).getAgentCard();
-                    log.info("Payment agent card resolved: {}", paymentAgentCard.name());
-                }
-            }
-        }
-        return paymentAgentCard;
-    }
+	public A2aPaymentAgentClient(@Value("${order-agent.payment-agent-url}") String paymentAgentBaseUrl) {
+		this.paymentAgentBaseUrl = paymentAgentBaseUrl;
+	}
 
-    /**
-     * 결제 에이전트에 A2A sendMessage로 해당 주문의 환불 가능 여부를 조회합니다.
-     */
-    public PaymentStatusResponse getPaymentStatus(String orderNumber) {
-        try {
-            ClientConfig clientConfig = new ClientConfig.Builder()
-                    .setAcceptedOutputModes(List.of("text"))
-                    .build();
+	private AgentCard resolveAgentCard() {
+		if (paymentAgentCard == null) {
+			synchronized (this) {
+				if (paymentAgentCard == null) {
+					A2AHttpClient httpClient = A2AHttpClientFactory.create();
+					paymentAgentCard = new A2ACardResolver(httpClient, paymentAgentBaseUrl, null).getAgentCard();
+					log.info("Payment agent card resolved: {}", paymentAgentCard.name());
+				}
+			}
+		}
+		return paymentAgentCard;
+	}
 
-            CompletableFuture<String> resultFuture = new CompletableFuture<>();
-            List<BiConsumer<ClientEvent, AgentCard>> consumers = List.of(
-                    (event, card) -> {
-                        if (event instanceof TaskEvent taskEvent) {
-                            Task task = taskEvent.getTask();
-                            if (TaskState.TASK_STATE_FAILED.equals(task.status().state())) {
-                                resultFuture.complete(null);
-                                return;
-                            }
-                            StringBuilder sb = new StringBuilder();
-                            if (task.artifacts() != null) {
-                                task.artifacts().forEach(artifact ->
-                                        artifact.parts().forEach(part -> {
-                                            if (part instanceof TextPart textPart) {
-                                                sb.append(textPart.text());
-                                            }
-                                        })
-                                );
-                            }
-                            resultFuture.complete(sb.toString());
-                        }
-                    }
-            );
+	/**
+	 * 결제 에이전트에 A2A sendMessage로 해당 주문의 환불 가능 여부를 조회합니다.
+	 */
+	public PaymentStatusResponse getPaymentStatus(String orderNumber) {
+		try {
+			ClientConfig clientConfig = new ClientConfig.Builder().setAcceptedOutputModes(List.of("text")).build();
 
-            try (Client client = Client
-                    .builder(resolveAgentCard())
-                    .clientConfig(clientConfig)
-                    .withTransport(JSONRPCTransport.class, new JSONRPCTransportConfig())
-                    .addConsumers(consumers)
-                    .build()) {
-                Message message = A2A.toAgentMessage(orderNumber);
-                client.sendMessage(message);
-            }
+			CompletableFuture<String> resultFuture = new CompletableFuture<>();
+			List<BiConsumer<ClientEvent, AgentCard>> consumers = List.of((event, card) -> {
+				if (event instanceof TaskEvent taskEvent) {
+					Task task = taskEvent.getTask();
+					if (TaskState.TASK_STATE_FAILED.equals(task.status().state())) {
+						resultFuture.complete(null);
+						return;
+					}
+					StringBuilder sb = new StringBuilder();
+					if (task.artifacts() != null) {
+						task.artifacts().forEach(artifact -> artifact.parts().forEach(part -> {
+							if (part instanceof TextPart textPart) {
+								sb.append(textPart.text());
+							}
+						}));
+					}
+					resultFuture.complete(sb.toString());
+				}
+			});
 
-            String responseText = resultFuture.get(timeoutSeconds, TimeUnit.SECONDS);
-            if (responseText == null || responseText.isBlank()) {
-                return new PaymentStatusResponse(orderNumber, false);
-            }
-            var m = REFUND_ELIGIBLE_LINE.matcher(responseText.trim());
-            if (m.find()) {
-                return new PaymentStatusResponse(orderNumber, Boolean.parseBoolean(m.group(1)));
-            }
-            return new PaymentStatusResponse(orderNumber, false);
-        } catch (Exception e) {
-            log.error("결제 에이전트 호출 실패 (orderNumber={}): {}", orderNumber, e.getMessage(), e);
-            return new PaymentStatusResponse(orderNumber, false);
-        }
-    }
+			try (Client client = Client.builder(resolveAgentCard())
+				.clientConfig(clientConfig)
+				.withTransport(JSONRPCTransport.class, new JSONRPCTransportConfig())
+				.addConsumers(consumers)
+				.build()) {
+				Message message = A2A.toAgentMessage(orderNumber);
+				client.sendMessage(message);
+			}
 
-    public record PaymentStatusResponse(String orderNumber, boolean refundEligible) {
-    }
+			String responseText = resultFuture.get(timeoutSeconds, TimeUnit.SECONDS);
+			if (responseText == null || responseText.isBlank()) {
+				return new PaymentStatusResponse(orderNumber, false);
+			}
+			var m = REFUND_ELIGIBLE_LINE.matcher(responseText.trim());
+			if (m.find()) {
+				return new PaymentStatusResponse(orderNumber, Boolean.parseBoolean(m.group(1)));
+			}
+			return new PaymentStatusResponse(orderNumber, false);
+		}
+		catch (Exception e) {
+			log.error("결제 에이전트 호출 실패 (orderNumber={}): {}", orderNumber, e.getMessage(), e);
+			return new PaymentStatusResponse(orderNumber, false);
+		}
+	}
+
+	public record PaymentStatusResponse(String orderNumber, boolean refundEligible) {
+	}
+
 }

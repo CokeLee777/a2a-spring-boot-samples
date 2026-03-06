@@ -29,103 +29,93 @@ import java.util.function.BiConsumer;
 @Component
 public class A2aOrderAgentClient {
 
-    private final String orderAgentBaseUrl;
-    private volatile AgentCard orderAgentCard;
+	private final String orderAgentBaseUrl;
 
-    @Value("${a2a.client.timeout-seconds}")
-    private int timeoutSeconds;
+	private volatile AgentCard orderAgentCard;
 
-    public A2aOrderAgentClient(
-            @Value("${delivery-agent.order-agent-url}") String orderAgentBaseUrl) {
-        this.orderAgentBaseUrl = orderAgentBaseUrl;
-    }
+	@Value("${a2a.client.timeout-seconds}")
+	private int timeoutSeconds;
 
-    private AgentCard resolveAgentCard() {
-        if (orderAgentCard == null) {
-            synchronized (this) {
-                if (orderAgentCard == null) {
-                    A2AHttpClient httpClient = A2AHttpClientFactory.create();
-                    orderAgentCard = new A2ACardResolver(httpClient, orderAgentBaseUrl, null).getAgentCard();
-                    log.info("Order agent card resolved: {}", orderAgentCard.name());
-                }
-            }
-        }
-        return orderAgentCard;
-    }
+	public A2aOrderAgentClient(@Value("${delivery-agent.order-agent-url}") String orderAgentBaseUrl) {
+		this.orderAgentBaseUrl = orderAgentBaseUrl;
+	}
 
-    /**
-     * 주문 에이전트에 A2A sendMessage로 운송장번호에 해당하는 주문 정보를 조회합니다.
-     */
-    public OrderInfoResponse getOrderInfo(String trackingNumber) {
-        try {
-            ClientConfig clientConfig = new ClientConfig.Builder()
-                    .setAcceptedOutputModes(List.of("text"))
-                    .build();
+	private AgentCard resolveAgentCard() {
+		if (orderAgentCard == null) {
+			synchronized (this) {
+				if (orderAgentCard == null) {
+					A2AHttpClient httpClient = A2AHttpClientFactory.create();
+					orderAgentCard = new A2ACardResolver(httpClient, orderAgentBaseUrl, null).getAgentCard();
+					log.info("Order agent card resolved: {}", orderAgentCard.name());
+				}
+			}
+		}
+		return orderAgentCard;
+	}
 
-            CompletableFuture<String> resultFuture = new CompletableFuture<>();
-            List<BiConsumer<ClientEvent, AgentCard>> consumers = List.of(
-                    (event, card) -> {
-                        if (event instanceof TaskEvent taskEvent) {
-                            Task task = taskEvent.getTask();
-                            if (TaskState.TASK_STATE_FAILED.equals(task.status().state())) {
-                                resultFuture.complete(null);
-                                return;
-                            }
-                            StringBuilder sb = new StringBuilder();
-                            if (task.artifacts() != null) {
-                                task.artifacts().forEach(artifact ->
-                                        artifact.parts().forEach(part -> {
-                                            if (part instanceof TextPart textPart) {
-                                                sb.append(textPart.text());
-                                            }
-                                        })
-                                );
-                            }
-                            resultFuture.complete(sb.toString());
-                        }
-                    }
-            );
+	/**
+	 * 주문 에이전트에 A2A sendMessage로 운송장번호에 해당하는 주문 정보를 조회합니다.
+	 */
+	public OrderInfoResponse getOrderInfo(String trackingNumber) {
+		try {
+			ClientConfig clientConfig = new ClientConfig.Builder().setAcceptedOutputModes(List.of("text")).build();
 
-            try (Client client = Client
-                    .builder(resolveAgentCard())
-                    .clientConfig(clientConfig)
-                    .withTransport(JSONRPCTransport.class, new JSONRPCTransportConfig())
-                    .addConsumers(consumers)
-                    .build()) {
-                Message message = A2A.toAgentMessage(trackingNumber);
-                client.sendMessage(message);
-            }
+			CompletableFuture<String> resultFuture = new CompletableFuture<>();
+			List<BiConsumer<ClientEvent, AgentCard>> consumers = List.of((event, card) -> {
+				if (event instanceof TaskEvent taskEvent) {
+					Task task = taskEvent.getTask();
+					if (TaskState.TASK_STATE_FAILED.equals(task.status().state())) {
+						resultFuture.complete(null);
+						return;
+					}
+					StringBuilder sb = new StringBuilder();
+					if (task.artifacts() != null) {
+						task.artifacts().forEach(artifact -> artifact.parts().forEach(part -> {
+							if (part instanceof TextPart textPart) {
+								sb.append(textPart.text());
+							}
+						}));
+					}
+					resultFuture.complete(sb.toString());
+				}
+			});
 
-            String responseText = resultFuture.get(timeoutSeconds, TimeUnit.SECONDS);
-            if (responseText == null || responseText.isBlank()) {
-                return null;
-            }
-            Map<String, String> parsed = new HashMap<>();
-            for (String line : responseText.split("\n")) {
-                int colon = line.indexOf(':');
-                if (colon > 0) {
-                    parsed.put(line.substring(0, colon).trim(), line.substring(colon + 1).trim());
-                }
-            }
-            String orderNumber = parsed.get("orderNumber");
-            String orderDate = parsed.get("orderDate");
-            String status = parsed.get("status");
-            if (orderNumber == null || "NOT_FOUND".equals(orderNumber)) {
-                return null;
-            }
-            return new OrderInfoResponse(orderNumber, parsed.get("productName"), status, orderDate, trackingNumber);
-        } catch (Exception e) {
-            log.error("주문 에이전트 호출 실패 (trackingNumber={}): {}", trackingNumber, e.getMessage(), e);
-            return null;
-        }
-    }
+			try (Client client = Client.builder(resolveAgentCard())
+				.clientConfig(clientConfig)
+				.withTransport(JSONRPCTransport.class, new JSONRPCTransportConfig())
+				.addConsumers(consumers)
+				.build()) {
+				Message message = A2A.toAgentMessage(trackingNumber);
+				client.sendMessage(message);
+			}
 
-    public record OrderInfoResponse(
-            String orderNumber,
-            String productName,
-            String status,
-            String orderDate,
-            String trackingNumber
-    ) {
-    }
+			String responseText = resultFuture.get(timeoutSeconds, TimeUnit.SECONDS);
+			if (responseText == null || responseText.isBlank()) {
+				return null;
+			}
+			Map<String, String> parsed = new HashMap<>();
+			for (String line : responseText.split("\n")) {
+				int colon = line.indexOf(':');
+				if (colon > 0) {
+					parsed.put(line.substring(0, colon).trim(), line.substring(colon + 1).trim());
+				}
+			}
+			String orderNumber = parsed.get("orderNumber");
+			String orderDate = parsed.get("orderDate");
+			String status = parsed.get("status");
+			if (orderNumber == null || "NOT_FOUND".equals(orderNumber)) {
+				return null;
+			}
+			return new OrderInfoResponse(orderNumber, parsed.get("productName"), status, orderDate, trackingNumber);
+		}
+		catch (Exception e) {
+			log.error("주문 에이전트 호출 실패 (trackingNumber={}): {}", trackingNumber, e.getMessage(), e);
+			return null;
+		}
+	}
+
+	public record OrderInfoResponse(String orderNumber, String productName, String status, String orderDate,
+			String trackingNumber) {
+	}
+
 }

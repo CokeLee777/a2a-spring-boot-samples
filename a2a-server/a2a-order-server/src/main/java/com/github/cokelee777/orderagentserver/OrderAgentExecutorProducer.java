@@ -20,87 +20,93 @@ import java.util.UUID;
 @RestController
 public class OrderAgentExecutorProducer {
 
-    private final List<SkillExecutor> skillExecutors;
+	private final List<SkillExecutor> skillExecutors;
 
-    public OrderAgentExecutorProducer(List<SkillExecutor> skillExecutors) {
-        this.skillExecutors = skillExecutors;
-    }
+	public OrderAgentExecutorProducer(List<SkillExecutor> skillExecutors) {
+		this.skillExecutors = skillExecutors;
+	}
 
-    @PostMapping(value = "/a2a", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> execute(@RequestBody String body) throws JsonProcessingException {
-        JsonObject request = JsonParser.parseString(body).getAsJsonObject();
-        Object requestId = extractId(request);
-        String method = request.get("method").getAsString();
+	@PostMapping(value = "/a2a", consumes = MediaType.APPLICATION_JSON_VALUE,
+			produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<String> execute(@RequestBody String body) throws JsonProcessingException {
+		JsonObject request = JsonParser.parseString(body).getAsJsonObject();
+		Object requestId = extractId(request);
+		String method = request.get("method").getAsString();
 
-        if (!A2AMethods.SEND_MESSAGE_METHOD.equals(method)) {
-            return ResponseEntity.ok(JsonUtil.toJson(new SendMessageResponse(requestId,
-                    new A2AError(A2AErrorCodes.METHOD_NOT_FOUND_ERROR_CODE, "Method not found: " + method, null))));
-        }
+		if (!A2AMethods.SEND_MESSAGE_METHOD.equals(method)) {
+			return ResponseEntity.ok(JsonUtil.toJson(new SendMessageResponse(requestId,
+					new A2AError(A2AErrorCodes.METHOD_NOT_FOUND_ERROR_CODE, "Method not found: " + method, null))));
+		}
 
-        JsonObject params = request.getAsJsonObject("params");
-        String userText = extractText(params);
-        boolean isInternalCall = Message.Role.ROLE_AGENT.name().equals(extractRole(params));
+		JsonObject params = request.getAsJsonObject("params");
+		String userText = extractText(params);
+		boolean isInternalCall = Message.Role.ROLE_AGENT.name().equals(extractRole(params));
 
-        Task task;
-        try {
-            String resultText = routeToExecutor(userText, isInternalCall);
-            task = Task.builder()
-                    .id(UUID.randomUUID().toString())
-                    .contextId(UUID.randomUUID().toString())
-                    .status(new TaskStatus(TaskState.TASK_STATE_COMPLETED))
-                    .artifacts(List.of(
-                            Artifact.builder()
-                                    .artifactId(UUID.randomUUID().toString())
-                                    .parts(new TextPart(resultText))
-                                    .build()
-                    ))
-                    .build();
-        } catch (Exception e) {
-            task = Task.builder()
-                    .id(UUID.randomUUID().toString())
-                    .contextId(UUID.randomUUID().toString())
-                    .status(new TaskStatus(TaskState.TASK_STATE_FAILED))
-                    .build();
-        }
+		Task task;
+		try {
+			String resultText = routeToExecutor(userText, isInternalCall);
+			task = Task.builder()
+				.id(UUID.randomUUID().toString())
+				.contextId(UUID.randomUUID().toString())
+				.status(new TaskStatus(TaskState.TASK_STATE_COMPLETED))
+				.artifacts(List.of(Artifact.builder()
+					.artifactId(UUID.randomUUID().toString())
+					.parts(new TextPart(resultText))
+					.build()))
+				.build();
+		}
+		catch (Exception e) {
+			task = Task.builder()
+				.id(UUID.randomUUID().toString())
+				.contextId(UUID.randomUUID().toString())
+				.status(new TaskStatus(TaskState.TASK_STATE_FAILED))
+				.build();
+		}
 
-        return ResponseEntity.ok(JsonUtil.toJson(new SendMessageResponse(requestId, task)));
-    }
+		return ResponseEntity.ok(JsonUtil.toJson(new SendMessageResponse(requestId, task)));
+	}
 
-    private String routeToExecutor(String userText, boolean isInternalCall) {
-        for (SkillExecutor executor : skillExecutors) {
-            if (executor.canHandle(userText, isInternalCall)) {
-                return executor.execute(userText, isInternalCall);
-            }
-        }
-        return "주문 취소 가능 여부 조회는 주문번호(ORD-)를 포함해 주세요. 예: ORD-1001 취소 가능한지 알려줘";
-    }
+	private String routeToExecutor(String userText, boolean isInternalCall) {
+		for (SkillExecutor executor : skillExecutors) {
+			if (executor.canHandle(userText, isInternalCall)) {
+				return executor.execute(userText, isInternalCall);
+			}
+		}
+		return "주문 취소 가능 여부 조회는 주문번호(ORD-)를 포함해 주세요. 예: ORD-1001 취소 가능한지 알려줘";
+	}
 
-    private String extractText(JsonObject params) {
-        JsonObject message = params.getAsJsonObject("message");
-        if (message == null) return "";
-        JsonArray parts = message.getAsJsonArray("parts");
-        if (parts == null) return "";
-        for (var part : parts) {
-            JsonObject partObj = part.getAsJsonObject();
-            if (partObj.has(TextPart.TEXT)) {
-                return partObj.get(TextPart.TEXT).getAsString();
-            }
-        }
-        return "";
-    }
+	private String extractText(JsonObject params) {
+		JsonObject message = params.getAsJsonObject("message");
+		if (message == null)
+			return "";
+		JsonArray parts = message.getAsJsonArray("parts");
+		if (parts == null)
+			return "";
+		for (var part : parts) {
+			JsonObject partObj = part.getAsJsonObject();
+			if (partObj.has(TextPart.TEXT)) {
+				return partObj.get(TextPart.TEXT).getAsString();
+			}
+		}
+		return "";
+	}
 
-    private Object extractId(JsonObject request) {
-        var idElement = request.get("id");
-        if (idElement == null || idElement.isJsonNull()) return null;
-        var prim = idElement.getAsJsonPrimitive();
-        if (prim.isNumber()) return prim.getAsInt();
-        return prim.getAsString();
-    }
+	private Object extractId(JsonObject request) {
+		var idElement = request.get("id");
+		if (idElement == null || idElement.isJsonNull())
+			return null;
+		var prim = idElement.getAsJsonPrimitive();
+		if (prim.isNumber())
+			return prim.getAsInt();
+		return prim.getAsString();
+	}
 
-    private String extractRole(JsonObject params) {
-        JsonObject message = params.getAsJsonObject("message");
-        if (message == null) return "";
-        var role = message.get("role");
-        return role != null ? role.getAsString() : "";
-    }
+	private String extractRole(JsonObject params) {
+		JsonObject message = params.getAsJsonObject("message");
+		if (message == null)
+			return "";
+		var role = message.get("role");
+		return role != null ? role.getAsString() : "";
+	}
+
 }
