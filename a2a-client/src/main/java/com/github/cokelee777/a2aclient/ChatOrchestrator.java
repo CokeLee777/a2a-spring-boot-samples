@@ -8,7 +8,7 @@ import org.springframework.util.Assert;
 
 @Service
 @RequiredArgsConstructor
-public class ChatOrchestratorService {
+public class ChatOrchestrator {
 
 	private final ChatClient chatClient;
 

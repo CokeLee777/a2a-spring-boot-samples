@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ChatController {
 
-	private final ChatOrchestratorService chatOrchestratorService;
+	private final ChatOrchestrator chatOrchestrator;
 
 	/**
 	 * 자유 문의를 받아 LLM으로 의도를 분석한 뒤, 해당 A2A 에이전트를 호출해 결과를 반환합니다.
@@ -23,7 +23,7 @@ public class ChatController {
 			produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<String> chat(@RequestBody String message) {
 		try {
-			String response = chatOrchestratorService.handleUserQuery(message);
+			String response = chatOrchestrator.handleUserQuery(message);
 			return ResponseEntity.ok(response);
 		}
 		catch (Exception e) {
