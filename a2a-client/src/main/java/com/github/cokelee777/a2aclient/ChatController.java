@@ -19,7 +19,7 @@ public class ChatController {
 	 * 요청 예: POST /api/chat Body: {"message": "ORD-1001 주문 취소해줘"} 응답: {"response": "에이전트가
 	 * 반환한 텍스트"}
 	 */
-	@PostMapping(value = "/api/chat", consumes = MediaType.APPLICATION_JSON_VALUE,
+	@PostMapping(value = "/chat", consumes = MediaType.APPLICATION_JSON_VALUE,
 			produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<String> chat(@RequestBody String message) {
 		try {
