@@ -47,8 +47,7 @@ public class ChatOrchestrator {
 			return new ChatResponse(request.sessionId(), content);
 		}
 		catch (Exception e) {
-			String fallback = "처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
-			return new ChatResponse(fallback, request.sessionId());
+			return new ChatResponse(request.sessionId(), e.getMessage());
 		}
 	}
 
