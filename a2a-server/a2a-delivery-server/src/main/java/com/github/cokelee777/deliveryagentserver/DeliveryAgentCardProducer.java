@@ -33,14 +33,14 @@ public class DeliveryAgentCardProducer {
 	 * @return a configured {@code AgentCard} instance
 	 */
 	@Bean
-	public AgentCard deliveryAgentCard(@Value("${server.port}") int serverPort) {
+	public AgentCard agentCard(@Value("${server.port}") int serverPort) {
 		final String AGENT_URL = String.format("http://localhost:%s/a2a", serverPort);
 		return AgentCard.builder()
 			.name("Delivery Tracking Agent")
 			.description("배송 정보를 제공하는 에이전트")
 			.supportedInterfaces(List.of(new AgentInterface(TransportProtocol.JSONRPC.asString(), AGENT_URL)))
 			.version("1.0.0")
-			.capabilities(AgentCapabilities.builder().streaming(true).pushNotifications(false).build())
+			.capabilities(AgentCapabilities.builder().streaming(false).pushNotifications(false).build())
 			.defaultInputModes(Collections.singletonList("text"))
 			.defaultOutputModes(Collections.singletonList("text"))
 			.skills(List.of(AgentSkill.builder()

@@ -3,6 +3,7 @@ package com.github.cokelee777.common.server;
 import io.a2a.client.http.A2AHttpClientFactory;
 import io.a2a.server.agentexecution.AgentExecutor;
 import io.a2a.server.config.A2AConfigProvider;
+import io.a2a.server.config.DefaultValuesConfigProvider;
 import io.a2a.server.events.InMemoryQueueManager;
 import io.a2a.server.events.MainEventBus;
 import io.a2a.server.events.MainEventBusProcessor;
@@ -11,6 +12,7 @@ import io.a2a.server.tasks.BasePushNotificationSender;
 import io.a2a.server.tasks.InMemoryPushNotificationConfigStore;
 import io.a2a.server.tasks.InMemoryTaskStore;
 import io.a2a.server.tasks.PushNotificationConfigStore;
+import io.a2a.spec.AgentCard;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.SmartLifecycle;
@@ -51,6 +53,42 @@ import java.util.concurrent.TimeUnit;
 @AutoConfiguration
 @EnableConfigurationProperties(A2AServerProperties.class)
 public class A2AServerAutoConfiguration {
+
+	/**
+	 * Registers the A2A Agent Card controller as a bean so it's discoverable by Spring
+	 * even if the server module's component scanning doesn't reach this package.
+	 * @param agentCard the agent card bean provided by the server module
+	 * @return a configured {@link A2AAgentCardController}
+	 */
+	@Bean
+	public A2AAgentCardController a2aAgentCardController(AgentCard agentCard) {
+		return new A2AAgentCardController(agentCard);
+	}
+
+	/**
+	 * Registers the A2A JSON-RPC controller as a bean so it's discoverable by Spring even
+	 * if the server module's component scanning doesn't reach this package.
+	 * @param requestHandler the request handler managing all JSON-RPC request processing
+	 * @return a configured {@link A2AJsonRpcController}
+	 */
+	@Bean
+	public A2AJsonRpcController a2aJsonRpcController(DefaultRequestHandler requestHandler) {
+		return new A2AJsonRpcController(requestHandler);
+	}
+
+	/**
+	 * Creates the A2A SDK configuration provider using default values.
+	 *
+	 * <p>
+	 * This provider bridges the Spring Environment to the A2A SDK, making any custom
+	 * configuration available to SDK components that need it.
+	 * </p>
+	 * @return a configured {@link A2AConfigProvider} instance
+	 */
+	@Bean
+	public A2AConfigProvider configProvider() {
+		return new DefaultValuesConfigProvider();
+	}
 
 	/**
 	 * Creates the in-memory task store used to persist task state during agent execution.

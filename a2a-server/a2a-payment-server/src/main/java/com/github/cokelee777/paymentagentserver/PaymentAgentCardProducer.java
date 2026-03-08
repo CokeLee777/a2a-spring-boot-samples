@@ -27,14 +27,14 @@ public class PaymentAgentCardProducer {
 	 * @return the configured AgentCard for the payment agent
 	 */
 	@Bean
-	public AgentCard paymentAgentCard(@Value("${server.port}") int serverPort) {
+	public AgentCard agentCard(@Value("${server.port}") int serverPort) {
 		final String AGENT_URL = String.format("http://localhost:%s/a2a", serverPort);
 		return AgentCard.builder()
 			.name("Payment Agent")
 			.description("결제·환불 상태를 조회하고, 주문 취소 시 환불 가능 여부를 판단하는 에이전트")
 			.supportedInterfaces(List.of(new AgentInterface(TransportProtocol.JSONRPC.asString(), AGENT_URL)))
 			.version("1.0.0")
-			.capabilities(AgentCapabilities.builder().streaming(true).pushNotifications(false).build())
+			.capabilities(AgentCapabilities.builder().streaming(false).pushNotifications(false).build())
 			.defaultInputModes(List.of("text"))
 			.defaultOutputModes(List.of("text"))
 			.skills(List.of(AgentSkill.builder()

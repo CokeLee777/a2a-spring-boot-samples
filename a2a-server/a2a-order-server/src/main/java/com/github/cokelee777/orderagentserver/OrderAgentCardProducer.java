@@ -32,14 +32,14 @@ public class OrderAgentCardProducer {
 	 * @return a configured {@code AgentCard} instance
 	 */
 	@Bean
-	public AgentCard orderAgentCard(@Value("${server.port}") int serverPort) {
+	public AgentCard agentCard(@Value("${server.port}") int serverPort) {
 		final String AGENT_URL = String.format("http://localhost:%s/a2a", serverPort);
 		return AgentCard.builder()
 			.name("Order Agent")
 			.description("주문 내역 조회 및 주문 취소 가능 여부를 조회하는 에이전트")
 			.supportedInterfaces(List.of(new AgentInterface(TransportProtocol.JSONRPC.asString(), AGENT_URL)))
 			.version("1.0.0")
-			.capabilities(AgentCapabilities.builder().streaming(true).pushNotifications(false).build())
+			.capabilities(AgentCapabilities.builder().streaming(false).pushNotifications(false).build())
 			.defaultInputModes(List.of("text"))
 			.defaultOutputModes(List.of("text"))
 			.skills(List.of(

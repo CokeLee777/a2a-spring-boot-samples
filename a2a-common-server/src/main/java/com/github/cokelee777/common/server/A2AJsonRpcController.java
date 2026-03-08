@@ -15,28 +15,21 @@ import io.a2a.jsonrpc.common.wrappers.ListTasksRequest;
 import io.a2a.jsonrpc.common.wrappers.ListTasksResponse;
 import io.a2a.jsonrpc.common.wrappers.SendMessageRequest;
 import io.a2a.jsonrpc.common.wrappers.SendMessageResponse;
-import io.a2a.jsonrpc.common.wrappers.SendStreamingMessageRequest;
-import io.a2a.jsonrpc.common.wrappers.SendStreamingMessageResponse;
 import io.a2a.server.ServerCallContext;
 import io.a2a.server.auth.UnauthenticatedUser;
 import io.a2a.server.requesthandlers.RequestHandler;
-import io.a2a.server.util.sse.SseFormatter;
 import io.a2a.spec.A2AError;
 import io.a2a.spec.A2AErrorCodes;
 import io.a2a.spec.A2AMethods;
-import io.a2a.spec.StreamingEventKind;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Flow;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * REST controller handling A2A Protocol JSON-RPC requests.
@@ -130,104 +123,6 @@ public class A2AJsonRpcController {
 					new A2AError(A2AErrorCodes.INTERNAL_ERROR_CODE, ex.getMessage(), null));
 			return ResponseEntity.ok(JsonUtil.toJson(errorResponse));
 		}
-	}
-
-	/**
-	 * Handles streaming A2A Protocol requests at {@code POST /a2a/stream} using
-	 * Server-Sent Events.
-	 *
-	 * <p>
-	 * Parses the request as a {@code message/stream} request, invokes
-	 * {@link RequestHandler#onMessageSendStream}, and pushes each
-	 * {@link StreamingEventKind} event as an SSE frame to the client.
-	 * </p>
-	 * @param body the raw JSON-RPC streaming request body
-	 * @return a {@link SseEmitter} that streams JSON-RPC response events
-	 * @throws JsonProcessingException if response serialization fails
-	 */
-	@PostMapping(value = "/a2a/stream", consumes = MediaType.APPLICATION_JSON_VALUE,
-			produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-	public SseEmitter stream(@RequestBody String body) throws JsonProcessingException {
-		SseEmitter emitter = new SseEmitter(0L);
-		ServerCallContext ctx = createCallContext();
-
-		A2ARequest<?> request;
-		try {
-			request = JSONRPCUtils.parseRequestBody(body, null);
-		}
-		catch (JsonMappingException ex) {
-			Object errorId = (ex instanceof IdJsonMappingException idEx) ? idEx.getId() : null;
-			A2AErrorResponse errorResponse = new A2AErrorResponse(errorId,
-					new A2AError(A2AErrorCodes.INVALID_REQUEST_ERROR_CODE, ex.getMessage(), null));
-			try {
-				emitter.send(SseEmitter.event().data(JsonUtil.toJson(errorResponse)));
-			}
-			catch (Exception ignored) {
-			}
-			emitter.complete();
-			return emitter;
-		}
-
-		Object requestId = request.getId();
-
-		if (!(request instanceof SendStreamingMessageRequest sendStreamingRequest)) {
-			A2AErrorResponse errorResponse = new A2AErrorResponse(requestId, new A2AError(
-					A2AErrorCodes.METHOD_NOT_FOUND_ERROR_CODE, "Method not found: " + request.getMethod(), null));
-			try {
-				emitter.send(SseEmitter.event().data(JsonUtil.toJson(errorResponse)));
-			}
-			catch (Exception ignored) {
-			}
-			emitter.complete();
-			return emitter;
-		}
-
-		AtomicLong eventIndex = new AtomicLong(0);
-		Flow.Publisher<StreamingEventKind> publisher;
-		try {
-			publisher = requestHandler.onMessageSendStream(sendStreamingRequest.getParams(), ctx);
-		}
-		catch (A2AError ex) {
-			A2AErrorResponse errorResponse = new A2AErrorResponse(requestId, ex);
-			try {
-				emitter.send(SseEmitter.event().data(JsonUtil.toJson(errorResponse)));
-			}
-			catch (Exception ignored) {
-			}
-			emitter.complete();
-			return emitter;
-		}
-
-		publisher.subscribe(new Flow.Subscriber<>() {
-			@Override
-			public void onSubscribe(Flow.Subscription subscription) {
-				subscription.request(Long.MAX_VALUE);
-			}
-
-			@Override
-			public void onNext(StreamingEventKind item) {
-				try {
-					SendStreamingMessageResponse response = new SendStreamingMessageResponse(requestId, item);
-					String sseData = SseFormatter.formatResponseAsSSE(response, eventIndex.getAndIncrement());
-					emitter.send(SseEmitter.event().data(sseData));
-				}
-				catch (Exception ex) {
-					emitter.completeWithError(ex);
-				}
-			}
-
-			@Override
-			public void onError(Throwable throwable) {
-				emitter.completeWithError(throwable);
-			}
-
-			@Override
-			public void onComplete() {
-				emitter.complete();
-			}
-		});
-
-		return emitter;
 	}
 
 	/**
