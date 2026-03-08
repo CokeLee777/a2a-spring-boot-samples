@@ -35,7 +35,7 @@ public class OrderCancellabilitySkillExecutor implements SkillExecutor {
 
 	private final A2aPaymentAgentClient paymentAgentClient;
 
-	@Value("${a2a.client.timeout-seconds:12}")
+	@Value("${a2a.client.timeout-seconds}")
 	private int timeoutSeconds;
 
 	/**
