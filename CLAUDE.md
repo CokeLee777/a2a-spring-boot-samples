@@ -28,7 +28,7 @@ A multi-module Spring Boot application demonstrating **Agent-to-Agent (A2A) Prot
 ```
 User (Natural Language)
         ↓
-A2A Client (8080) — ChatClient + FunctionToolCallback
+A2A Client (8080) — ChatClient + @Tool annotations
   • Parses intent via LLM tool-calling
   • Maintains session memory (20 messages)
   • Routes to agents via A2A Protocol
@@ -69,19 +69,36 @@ Each agent implements this interface. Implementations check the `isInternalCall`
 // Agent-to-agent communication
 @Component
 public class A2a*AgentClient {
-  private volatile AgentCard agentCard;  // Lazy-loaded, cached
+  private final AtomicReference<AgentCard> agentCardRef = new AtomicReference<>();  // Lazy-loaded, cached
 
   public Response getInfo(String identifier) {
     Message msg = A2A.toAgentMessage(identifier);  // Use SDK utility
-    // Build client, send message, parse artifact
+    AgentCard card = resolveAgentCard();
+    // Build client, send message, parse artifact via Consumer callback
+  }
+
+  private AgentCard resolveAgentCard() {
+    AgentCard card = agentCardRef.get();
+    if (card == null) {
+      synchronized (this) {
+        card = agentCardRef.get();
+        if (card == null) {
+          A2AHttpClient httpClient = A2AHttpClientFactory.create();
+          card = new A2ACardResolver(httpClient, agentUrl, null).getAgentCard();
+          agentCardRef.set(card);
+        }
+      }
+    }
+    return card;
   }
 }
 ```
 
 Key points:
 - Use `A2A.toAgentMessage(text)` and `A2A.toUserMessage(text)` SDK utilities (not verbose `Message.builder()`)
-- Cache `AgentCard` at field level (lazy init with synchronized double-check)
+- Cache `AgentCard` via `AtomicReference<AgentCard>` with synchronized double-check block
 - Always specify output mode: `List.of("text")`
+- Use Consumer callbacks (`BiConsumer<ClientEvent, AgentCard>`) to receive async `TaskEvent` results
 
 **3. In-Memory Database Pattern**
 
@@ -101,7 +118,29 @@ public class *Database {
 
 **4. Spring AI ChatClient Pattern** (client only)
 
+Tools are defined with `@Tool` annotation, registered at ChatClient build time via `defaultTools(tools.toArray())`:
+
 ```java
+// Tool definition — Spring AI @Tool annotation
+@Component
+public class OrderTool extends A2aTool {
+  @Tool(description = "주문 취소 가능 여부 확인...")
+  public String checkOrderCancellability(OrderCancellabilityRequest request) {
+    return sendRequest(request.orderNumber() + " 취소 가능 여부 확인");
+  }
+}
+
+// ChatClient configuration
+@Bean
+public <T extends A2aTool> ChatClient chatClient(ChatModel chatModel, ChatMemory chatMemory, List<T> tools) {
+  return ChatClient.builder(chatModel)
+    .defaultSystem(SYSTEM_PROMPT)
+    .defaultTools(tools.toArray())   // Register @Tool-annotated beans
+    .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+    .build();
+}
+
+// Orchestration — ChatClient handles tool invocation loop automatically
 @Service
 public class ChatOrchestrator {
   private final ChatClient chatClient;
@@ -117,9 +156,10 @@ public class ChatOrchestrator {
 }
 ```
 
-- Tools are registered at ChatClient build time via `defaultTools(toolInstances)`
-- Tool-calling is automatic (`internalToolExecutionEnabled=true` by default)
+- Tools use `@Tool` annotation (not `FunctionToolCallback.builder()`)
+- Tool-calling loop is automatic (`internalToolExecutionEnabled=true` by default)
 - Session memory is managed via `ChatMemory.CONVERSATION_ID` advisor parameter
+- `A2aTool` base class handles AgentCard resolution and `sendMessage()` via Consumer callbacks
 
 ### Parallel Agent Coordination Example
 
@@ -296,7 +336,7 @@ curl -X POST http://localhost:8080/chat \
 ## Best Practices (Established in This Project)
 
 1. **Standard A2A Pattern:** All agent-to-agent calls use `Message.Role.ROLE_AGENT` + identifier parsing, never string prefixes
-2. **Agent Card Caching:** Resolve agent cards once at startup, cache in volatile field with synchronized double-check
+2. **Agent Card Caching:** Resolve agent cards lazily, cache via `AtomicReference<AgentCard>` with synchronized double-check block
 3. **Timeout Centralization:** All A2A client calls use `a2a.client.timeout-seconds` property
 4. **JavaDoc Standard:** All public APIs have English documentation (class, method, record level). Validate with `./gradlew javadoc`
 5. **Code Format Compliance:** All code must pass `./gradlew checkFormat` (Spring Java Format). Run `./gradlew format` to auto-fix

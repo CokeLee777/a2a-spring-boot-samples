@@ -4,6 +4,12 @@ import io.a2a.spec.Message;
 import io.a2a.spec.Part;
 import io.a2a.spec.TextPart;
 
+/**
+ * Utility class for working with A2A {@link Message} objects.
+ *
+ * <p>
+ * Provides helper methods to extract and process message content parts.
+ */
 public class MessageUtil {
 
 	/**
