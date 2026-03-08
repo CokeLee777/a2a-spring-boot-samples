@@ -1,0 +1,10 @@
+// 라이브러리 모듈이므로 bootJar 비활성화, jar 활성화
+apply plugin: 'java-library'
+bootJar.enabled = false
+jar.enabled = true
+
+dependencies {
+    api 'org.springframework.boot:spring-boot-starter-web'
+    api 'io.github.a2asdk:a2a-java-sdk-server-common'
+    api 'io.github.a2asdk:a2a-java-sdk-jsonrpc-common'
+}

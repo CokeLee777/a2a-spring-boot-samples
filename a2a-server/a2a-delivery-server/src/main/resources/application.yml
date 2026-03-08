@@ -7,3 +7,9 @@ delivery-agent:
 a2a:
   client:
     timeout-seconds: 10
+  server:
+    blocking-agent-timeout-seconds: 30
+    blocking-consumption-timeout-seconds: 30
+    executor-core-pool-size: 10
+    executor-max-pool-size: 50
+    executor-queue-capacity: 100

@@ -1,0 +1,3 @@
+// Parent module for server subprojects
+// Does not produce executable JAR
+bootJar.enabled = false
