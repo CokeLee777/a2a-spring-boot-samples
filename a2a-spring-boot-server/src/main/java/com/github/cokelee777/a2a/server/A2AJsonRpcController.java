@@ -1,4 +1,4 @@
-package com.github.cokelee777.common.server;
+package com.github.cokelee777.a2a.server;
 
 import io.a2a.grpc.utils.JSONRPCUtils;
 import io.a2a.jsonrpc.common.json.IdJsonMappingException;

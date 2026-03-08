@@ -1,4 +1,4 @@
-package com.github.cokelee777.common.server.utils;
+package com.github.cokelee777.a2a.server.utils;
 
 import io.a2a.spec.Message;
 import io.a2a.spec.Part;

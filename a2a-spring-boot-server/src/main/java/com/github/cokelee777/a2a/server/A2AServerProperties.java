@@ -1,4 +1,4 @@
-package com.github.cokelee777.common.server;
+package com.github.cokelee777.a2a.server;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

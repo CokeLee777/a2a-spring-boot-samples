@@ -1,6 +1,6 @@
 package com.github.cokelee777.orderagentserver;
 
-import com.github.cokelee777.common.server.utils.MessageUtil;
+import com.github.cokelee777.a2a.server.utils.MessageUtil;
 import com.github.cokelee777.orderagentserver.executor.SkillExecutor;
 import io.a2a.server.agentexecution.AgentExecutor;
 import io.a2a.server.agentexecution.RequestContext;

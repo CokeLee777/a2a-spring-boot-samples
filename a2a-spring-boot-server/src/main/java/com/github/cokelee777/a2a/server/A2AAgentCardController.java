@@ -1,4 +1,4 @@
-package com.github.cokelee777.common.server;
+package com.github.cokelee777.a2a.server;
 
 import io.a2a.spec.AgentCard;
 import lombok.RequiredArgsConstructor;
