@@ -1,17 +1,18 @@
 package com.github.cokelee777.orderagentserver.executor;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
 import com.github.cokelee777.orderagentserver.client.A2aDeliveryAgentClient;
-import com.github.cokelee777.orderagentserver.client.A2aPaymentAgentClient;
 import com.github.cokelee777.orderagentserver.client.A2aDeliveryAgentClient.DeliveryStatusResponse;
+import com.github.cokelee777.orderagentserver.client.A2aPaymentAgentClient;
 import com.github.cokelee777.orderagentserver.client.A2aPaymentAgentClient.PaymentStatusResponse;
 import com.github.cokelee777.orderagentserver.db.OrderDatabase;
 import io.a2a.spec.Message;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Skill executor for determining order cancellation eligibility.
@@ -30,25 +31,15 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class OrderCancellabilitySkillExecutor implements SkillExecutor {
-
-	private final A2aDeliveryAgentClient deliveryAgentClient;
-
-	private final A2aPaymentAgentClient paymentAgentClient;
 
 	@Value("${a2a.client.timeout-seconds}")
 	private int timeoutSeconds;
 
-	/**
-	 * Constructs an OrderCancellabilitySkillExecutor with agent clients.
-	 * @param deliveryAgentClient the client for calling the delivery agent
-	 * @param paymentAgentClient the client for calling the payment agent
-	 */
-	public OrderCancellabilitySkillExecutor(A2aDeliveryAgentClient deliveryAgentClient,
-			A2aPaymentAgentClient paymentAgentClient) {
-		this.deliveryAgentClient = deliveryAgentClient;
-		this.paymentAgentClient = paymentAgentClient;
-	}
+	private final A2aDeliveryAgentClient deliveryAgentClient;
+
+	private final A2aPaymentAgentClient paymentAgentClient;
 
 	/**
 	 * Returns the skill ID handled by this executor.

@@ -3,6 +3,7 @@ package com.github.cokelee777.deliveryagentserver.executor;
 import com.github.cokelee777.deliveryagentserver.client.A2aOrderAgentClient;
 import com.github.cokelee777.deliveryagentserver.db.DeliveryDatabase;
 import io.a2a.spec.Message;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,17 +15,10 @@ import org.springframework.stereotype.Component;
  * </p>
  */
 @Component
+@RequiredArgsConstructor
 public class DeliveryTrackingSkillExecutor implements SkillExecutor {
 
 	private final A2aOrderAgentClient orderAgentClient;
-
-	/**
-	 * Constructs a DeliveryTrackingSkillExecutor with an order agent client.
-	 * @param orderAgentClient the client for communicating with the order agent
-	 */
-	public DeliveryTrackingSkillExecutor(A2aOrderAgentClient orderAgentClient) {
-		this.orderAgentClient = orderAgentClient;
-	}
 
 	/**
 	 * Returns the skill ID handled by this executor.
