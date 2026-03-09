@@ -44,14 +44,14 @@ public class OrderAgentCardProducer {
 			.defaultOutputModes(List.of("text"))
 			.skills(List.of(
 					AgentSkill.builder()
-						.id("order_list")
+						.id(OrderAgentSkillIds.ORDER_LIST)
 						.name("주문 내역 조회")
 						.description("회원 ID로 해당 회원의 주문 목록을 조회합니다. MEMBER-{memberId} 형식으로 호출합니다.")
 						.tags(List.of("order", "list", "history"))
 						.examples(List.of("MEMBER-user1 주문내역 조회"))
 						.build(),
 					AgentSkill.builder()
-						.id("order_cancellability_check")
+						.id(OrderAgentSkillIds.ORDER_CANCELLABILITY_CHECK)
 						.name("주문 취소 가능 여부 조회")
 						.description("주문번호로 주문의 취소 가능 여부를 확인합니다. 배송 및 결제 상태를 종합적으로 체크합니다.")
 						.tags(List.of("order", "cancellability", "check"))
@@ -59,7 +59,7 @@ public class OrderAgentCardProducer {
 								List.of("ORD-1001 취소 가능한지 알려줘", "주문번호 ORD-2002 취소할 수 있어?", "ORD-3003 주문 취소 가능 여부 확인해줘"))
 						.build(),
 					AgentSkill.builder()
-						.id("order_info_by_tracking")
+						.id(OrderAgentSkillIds.ORDER_INFO_BY_TRACKING)
 						.name("운송장 번호로 주문 정보 조회 (내부)")
 						.description("운송장 번호로 주문 정보를 조회합니다. 배송 에이전트의 내부 A2A 호출 전용입니다.")
 						.tags(List.of("order", "tracking", "internal"))

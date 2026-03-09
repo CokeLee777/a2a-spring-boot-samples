@@ -1,6 +1,7 @@
 package com.github.cokelee777.paymentagentserver.executor;
 
 import com.github.cokelee777.a2a.server.common.executor.SkillExecutor;
+import com.github.cokelee777.paymentagentserver.PaymentAgentSkillIds;
 import com.github.cokelee777.paymentagentserver.db.PaymentDatabase;
 import io.a2a.spec.Message;
 import org.springframework.stereotype.Component;
@@ -17,11 +18,11 @@ public class PaymentStatusSkillExecutor implements SkillExecutor {
 
 	/**
 	 * Returns the skill ID handled by this executor.
-	 * @return {@code "payment_status"}
+	 * @return {@link PaymentAgentSkillIds#PAYMENT_STATUS}
 	 */
 	@Override
 	public String skillId() {
-		return "payment_status";
+		return PaymentAgentSkillIds.PAYMENT_STATUS;
 	}
 
 	/**

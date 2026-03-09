@@ -1,6 +1,7 @@
 package com.github.cokelee777.orderagentserver.executor;
 
 import com.github.cokelee777.a2a.server.common.executor.SkillExecutor;
+import com.github.cokelee777.orderagentserver.OrderAgentSkillIds;
 import com.github.cokelee777.orderagentserver.client.A2aDeliveryAgentClient;
 import com.github.cokelee777.orderagentserver.client.A2aDeliveryAgentClient.DeliveryStatusResponse;
 import com.github.cokelee777.orderagentserver.client.A2aPaymentAgentClient;
@@ -44,11 +45,11 @@ public class OrderCancellabilitySkillExecutor implements SkillExecutor {
 
 	/**
 	 * Returns the skill ID handled by this executor.
-	 * @return {@code "order_cancellability_check"}
+	 * @return {@link OrderAgentSkillIds#ORDER_CANCELLABILITY_CHECK}
 	 */
 	@Override
 	public String skillId() {
-		return "order_cancellability_check";
+		return OrderAgentSkillIds.ORDER_CANCELLABILITY_CHECK;
 	}
 
 	/**

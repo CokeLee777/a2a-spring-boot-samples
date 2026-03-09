@@ -1,6 +1,7 @@
 package com.github.cokelee777.orderagentserver.executor;
 
 import com.github.cokelee777.a2a.server.common.executor.SkillExecutor;
+import com.github.cokelee777.orderagentserver.OrderAgentSkillIds;
 import com.github.cokelee777.orderagentserver.db.OrderDatabase;
 import io.a2a.spec.Message;
 import org.springframework.stereotype.Component;
@@ -17,11 +18,11 @@ public class OrderInfoSkillExecutor implements SkillExecutor {
 
 	/**
 	 * Returns the skill ID handled by this executor.
-	 * @return {@code "order_info_by_tracking"}
+	 * @return {@link OrderAgentSkillIds#ORDER_INFO_BY_TRACKING}
 	 */
 	@Override
 	public String skillId() {
-		return "order_info_by_tracking";
+		return OrderAgentSkillIds.ORDER_INFO_BY_TRACKING;
 	}
 
 	/**

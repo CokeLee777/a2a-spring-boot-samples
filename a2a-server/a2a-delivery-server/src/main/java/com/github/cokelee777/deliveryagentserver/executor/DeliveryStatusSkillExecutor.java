@@ -1,6 +1,7 @@
 package com.github.cokelee777.deliveryagentserver.executor;
 
 import com.github.cokelee777.a2a.server.common.executor.SkillExecutor;
+import com.github.cokelee777.deliveryagentserver.DeliveryAgentSkillIds;
 import com.github.cokelee777.deliveryagentserver.db.DeliveryDatabase;
 import io.a2a.spec.Message;
 import org.springframework.stereotype.Component;
@@ -18,11 +19,11 @@ public class DeliveryStatusSkillExecutor implements SkillExecutor {
 
 	/**
 	 * Returns the skill ID handled by this executor.
-	 * @return {@code "delivery_status_internal"}
+	 * @return {@link DeliveryAgentSkillIds#DELIVERY_STATUS_INTERNAL}
 	 */
 	@Override
 	public String skillId() {
-		return "delivery_status_internal";
+		return DeliveryAgentSkillIds.DELIVERY_STATUS_INTERNAL;
 	}
 
 	/**

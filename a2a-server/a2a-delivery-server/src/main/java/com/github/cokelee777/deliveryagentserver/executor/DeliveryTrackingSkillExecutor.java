@@ -1,6 +1,7 @@
 package com.github.cokelee777.deliveryagentserver.executor;
 
 import com.github.cokelee777.a2a.server.common.executor.SkillExecutor;
+import com.github.cokelee777.deliveryagentserver.DeliveryAgentSkillIds;
 import com.github.cokelee777.deliveryagentserver.client.A2aOrderAgentClient;
 import com.github.cokelee777.deliveryagentserver.db.DeliveryDatabase;
 import io.a2a.spec.Message;
@@ -23,11 +24,11 @@ public class DeliveryTrackingSkillExecutor implements SkillExecutor {
 
 	/**
 	 * Returns the skill ID handled by this executor.
-	 * @return {@code "track_delivery"}
+	 * @return {@link DeliveryAgentSkillIds#TRACK_DELIVERY}
 	 */
 	@Override
 	public String skillId() {
-		return "track_delivery";
+		return DeliveryAgentSkillIds.TRACK_DELIVERY;
 	}
 
 	/**

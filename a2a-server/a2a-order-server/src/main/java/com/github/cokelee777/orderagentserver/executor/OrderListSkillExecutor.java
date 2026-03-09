@@ -1,6 +1,7 @@
 package com.github.cokelee777.orderagentserver.executor;
 
 import com.github.cokelee777.a2a.server.common.executor.SkillExecutor;
+import com.github.cokelee777.orderagentserver.OrderAgentSkillIds;
 import com.github.cokelee777.orderagentserver.db.OrderDatabase;
 import com.github.cokelee777.orderagentserver.db.OrderDatabase.OrderInfo;
 import io.a2a.spec.Message;
@@ -20,11 +21,11 @@ public class OrderListSkillExecutor implements SkillExecutor {
 
 	/**
 	 * Returns the skill ID handled by this executor.
-	 * @return {@code "order_list"}
+	 * @return {@link OrderAgentSkillIds#ORDER_LIST}
 	 */
 	@Override
 	public String skillId() {
-		return "order_list";
+		return OrderAgentSkillIds.ORDER_LIST;
 	}
 
 	/**
