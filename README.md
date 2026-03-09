@@ -55,6 +55,20 @@ Agents communicate exclusively via **A2A Protocol** (JSON-RPC over HTTP):
   - Server reads `role` from JSON body to set `isInternalCall` boolean
   - Different responses based on call type
 
+**Supported JSON-RPC methods** (`POST /a2a`):
+
+| Method | Description |
+|--------|-------------|
+| `message/send` | Send a message; returns a task or message event |
+| `tasks/get` | Retrieve task by ID |
+| `tasks/cancel` | Cancel a task |
+| `tasks/list` | List tasks |
+| `tasks/pushNotification/create` | Register push notification config for a task |
+| `tasks/pushNotification/get` | Get push notification config |
+| `tasks/pushNotification/delete` | Delete push notification config |
+
+Streaming requests and unknown types return an `UnsupportedOperationError`. JSON-RPC error responses use HTTP 500.
+
 ### Parallel Agent Coordination (Order Cancellation Check)
 
 When checking order cancellation eligibility, Order Agent initiates **concurrent** calls:

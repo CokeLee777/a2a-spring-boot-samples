@@ -13,6 +13,9 @@ A multi-module Spring Boot application demonstrating **Agent-to-Agent (A2A) Prot
 - ✅ Parallel agent coordination (concurrent Delivery + Payment calls)
 - ✅ gradle javadoc validation passes (no errors/warnings)
 - ✅ checkFormat validation passes (Spring Java Format compliant)
+- ✅ Push notification config methods supported (`tasks/pushNotification/create|get|delete`)
+- ✅ Typed JSON-RPC error classes (replaces `A2AErrorCodes` constants)
+- ✅ Protobuf-based response serialization via `JSONRPCUtils` + `ProtoUtils`
 
 ## Module Structure & Ports
 
@@ -47,8 +50,20 @@ Order Agent   Delivery  Payment
 
 - **Client → Agent:** `POST /a2a` with `Message.Role.ROLE_USER` + natural language
 - **Agent → Agent:** `POST /a2a` with `Message.Role.ROLE_AGENT` + identifier (e.g., `ORD-1001`, `TRACK-1001`)
-  - Server reads `role` from JSON request body to determine `isInternalCall` boolean
-  - Internal calls receive minimal data; external calls receive formatted, user-friendly responses
+ - Server reads `role` from JSON request body to determine `isInternalCall` boolean
+ - Internal calls receive minimal data; external calls receive formatted, user-friendly responses
+
+**Supported JSON-RPC methods (non-streaming):**
+
+| Method | Request Type | Description |
+|--------|-------------|-------------|
+| `message/send` | `SendMessageRequest` | Send a message and receive a task or message event |
+| `tasks/get` | `GetTaskRequest` | Retrieve task by ID |
+| `tasks/cancel` | `CancelTaskRequest` | Cancel a task |
+| `tasks/list` | `ListTasksRequest` | List tasks |
+| `tasks/pushNotification/create` | `CreateTaskPushNotificationConfigRequest` | Register push notification config |
+| `tasks/pushNotification/get` | `GetTaskPushNotificationConfigRequest` | Get push notification config |
+| `tasks/pushNotification/delete` | `DeleteTaskPushNotificationConfigRequest` | Delete push notification config |
 
 ### Key Code Patterns
 
@@ -100,7 +115,46 @@ Key points:
 - Always specify output mode: `List.of("text")`
 - Use Consumer callbacks (`BiConsumer<ClientEvent, AgentCard>`) to receive async `TaskEvent` results
 
-**3. In-Memory Database Pattern**
+**3. A2AJsonRpcController Pattern** (`a2a-spring-boot-server`)
+
+The shared controller uses pattern matching for dispatch and Protobuf for serialization:
+
+```java
+// Dispatch: NonStreamingJSONRPCRequest subtype check (no string comparison)
+private A2AResponse<?> processNonStreamingRequest(NonStreamingJSONRPCRequest<?> request,
+        ServerCallContext context) {
+    if (request instanceof SendMessageRequest req) { ... }
+    if (request instanceof GetTaskRequest req) { ... }
+    if (request instanceof CreateTaskPushNotificationConfigRequest req) { ... }
+    // ...
+    return generateErrorResponse(request, new UnsupportedOperationError());
+}
+
+// Serialization: domain response → Protobuf → JSON-RPC string
+private static String serializeResponse(A2AResponse<?> response) {
+    if (response instanceof A2AErrorResponse error) {
+        return JSONRPCUtils.toJsonRPCErrorResponse(error.getId(), error.getError());
+    }
+    com.google.protobuf.MessageOrBuilder proto = convertToProto(response);
+    return JSONRPCUtils.toJsonRPCResultResponse(response.getId(), proto);
+}
+
+// Error mapping: typed error classes, not A2AErrorCodes constants
+catch (InvalidParamsJsonMappingException e) {
+    error = new A2AErrorResponse(e.getId(), new InvalidParamsError(null, e.getMessage(), null));
+}
+catch (JsonSyntaxException | JsonProcessingException e) {
+    error = new A2AErrorResponse(new JSONParseError(e.getMessage()));
+}
+```
+
+Key points:
+- Parse with `JSONRPCUtils.parseRequestBody(body, null)`, then check `instanceof NonStreamingJSONRPCRequest`
+- Each error type maps to its own JSON-RPC error class (not raw codes)
+- Error responses use `ResponseEntity.internalServerError()` (HTTP 500), not HTTP 200
+- Result responses use `ResponseEntity.ok()` with Protobuf-serialized body
+
+**4. In-Memory Database Pattern**
 
 ```java
 public class *Database {
@@ -341,5 +395,5 @@ curl -X POST http://localhost:8080/chat \
 4. **JavaDoc Standard:** All public APIs have English documentation (class, method, record level). Validate with `./gradlew javadoc`
 5. **Code Format Compliance:** All code must pass `./gradlew checkFormat` (Spring Java Format). Run `./gradlew format` to auto-fix
 6. **Internal Response Format:** Agents respond with structured key:value lines for internal calls
-7. **Error Handling:** Wrap executor calls in try/catch, return `TaskStatus(TASK_STATE_FAILED)` on exception
+7. **Error Handling:** Use typed A2A error classes (`InvalidParamsError`, `MethodNotFoundError`, `InvalidRequestError`, `JSONParseError`, `InternalError`) — not raw `A2AErrorCodes` constants. JSON-RPC error responses return HTTP 500 (`internalServerError()`), not HTTP 200. Wrap skill executor calls in try/catch, return `TaskStatus(TASK_STATE_FAILED)` on exception.
 8. **Session Memory:** Use ChatMemory advisor pattern for multi-turn context (not manual state)
