@@ -1,12 +1,15 @@
 package com.github.cokelee777.deliveryagentserver.client;
 
+import com.github.cokelee777.a2a.common.metadata.A2aMetadataKeys;
 import com.github.cokelee777.a2a.common.transport.A2aTransport;
-import io.a2a.A2A;
+import io.a2a.spec.Message;
+import io.a2a.spec.TextPart;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,12 +41,22 @@ public class A2aOrderAgentClient {
 
 	/**
 	 * Retrieves order information by tracking number from the order agent.
+	 *
+	 * <p>
+	 * Sends an internal A2A request (ROLE_AGENT) with skill ID
+	 * {@code "order_info_by_tracking"} to the order agent.
+	 * </p>
 	 * @param trackingNumber the tracking number to query
 	 * @return an {@link OrderInfoResponse} containing order details, or {@code null} if
 	 * not found or on error
 	 */
 	public OrderInfoResponse getOrderInfo(String trackingNumber) {
-		return transport.send(A2A.toAgentMessage(trackingNumber), timeoutSeconds)
+		Message message = Message.builder()
+			.role(Message.Role.ROLE_AGENT)
+			.parts(List.of(new TextPart(trackingNumber)))
+			.metadata(Map.of(A2aMetadataKeys.SKILL_ID, "order_info_by_tracking"))
+			.build();
+		return transport.send(message, timeoutSeconds)
 			.filter(text -> !text.isBlank())
 			.map(text -> parseOrderInfo(text, trackingNumber))
 			.orElseGet(() -> {

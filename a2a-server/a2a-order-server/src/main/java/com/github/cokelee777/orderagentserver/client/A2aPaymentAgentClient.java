@@ -1,11 +1,15 @@
 package com.github.cokelee777.orderagentserver.client;
 
+import com.github.cokelee777.a2a.common.metadata.A2aMetadataKeys;
 import com.github.cokelee777.a2a.common.transport.A2aTransport;
-import io.a2a.A2A;
+import io.a2a.spec.Message;
+import io.a2a.spec.TextPart;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -42,25 +46,29 @@ public class A2aPaymentAgentClient {
 	 * Retrieves payment and refund eligibility status for an order.
 	 *
 	 * <p>
-	 * Returns a non-refund-eligible response if the agent call fails or times out.
+	 * Sends an internal A2A request (ROLE_AGENT) with skill ID {@code "payment_status"}
+	 * to the payment agent. Returns a non-refund-eligible response if the agent call
+	 * fails or times out.
 	 * </p>
 	 * @param orderNumber the order number to query
 	 * @return a {@link PaymentStatusResponse} with the refund eligibility result
 	 */
 	public PaymentStatusResponse getPaymentStatus(String orderNumber) {
-		return transport.send(A2A.toAgentMessage(orderNumber), timeoutSeconds)
-			.filter(text -> !text.isBlank())
-			.map(text -> {
-				var m = REFUND_ELIGIBLE_LINE.matcher(text.trim());
-				if (m.find()) {
-					return new PaymentStatusResponse(orderNumber, Boolean.parseBoolean(m.group(1)));
-				}
-				return new PaymentStatusResponse(orderNumber, false);
-			})
-			.orElseGet(() -> {
-				log.error("결제 에이전트 호출 실패 (orderNumber={})", orderNumber);
-				return new PaymentStatusResponse(orderNumber, false);
-			});
+		Message message = Message.builder()
+			.role(Message.Role.ROLE_AGENT)
+			.parts(List.of(new TextPart(orderNumber)))
+			.metadata(Map.of(A2aMetadataKeys.SKILL_ID, "payment_status"))
+			.build();
+		return transport.send(message, timeoutSeconds).filter(text -> !text.isBlank()).map(text -> {
+			var m = REFUND_ELIGIBLE_LINE.matcher(text.trim());
+			if (m.find()) {
+				return new PaymentStatusResponse(orderNumber, Boolean.parseBoolean(m.group(1)));
+			}
+			return new PaymentStatusResponse(orderNumber, false);
+		}).orElseGet(() -> {
+			log.error("결제 에이전트 호출 실패 (orderNumber={})", orderNumber);
+			return new PaymentStatusResponse(orderNumber, false);
+		});
 	}
 
 	/**

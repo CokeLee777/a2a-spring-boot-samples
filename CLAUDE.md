@@ -16,6 +16,8 @@ A multi-module Spring Boot application demonstrating **Agent-to-Agent (A2A) Prot
 - ✅ Push notification config methods supported (`tasks/pushNotification/create|get|delete`)
 - ✅ Typed JSON-RPC error classes (replaces `A2AErrorCodes` constants)
 - ✅ Protobuf-based response serialization via `JSONRPCUtils` + `ProtoUtils`
+- ✅ Skill ID-based routing via message metadata (`A2aMetadataKeys.SKILL_ID`); `canHandle()` removed
+- ✅ `Message.Role`-based access control in `SkillExecutor` (`requiredRole()`); `boolean isInternalCall` removed
 
 ## Module Structure & Ports
 
@@ -48,10 +50,10 @@ Order Agent   Delivery  Payment
 
 ### A2A Protocol Details
 
-- **Client → Agent:** `POST /a2a` with `Message.Role.ROLE_USER` + natural language
-- **Agent → Agent:** `POST /a2a` with `Message.Role.ROLE_AGENT` + identifier (e.g., `ORD-1001`, `TRACK-1001`)
- - Server reads `role` from JSON request body to determine `isInternalCall` boolean
- - Internal calls receive minimal data; external calls receive formatted, user-friendly responses
+- **Client → Agent:** `POST /a2a` with `Message.Role.ROLE_USER` + skill ID in `message.metadata()`
+- **Agent → Agent:** `POST /a2a` with `Message.Role.ROLE_AGENT` + skill ID in `message.metadata()`
+ - Skill ID is stored under `A2aMetadataKeys.SKILL_ID` (`"skillId"`) in message metadata
+ - Each `SkillExecutor` declares `skillId()` and `requiredRole()`; `AgentExecutor` routes by skill ID and enforces role
 
 **Supported JSON-RPC methods (non-streaming):**
 
@@ -71,12 +73,13 @@ Order Agent   Delivery  Payment
 
 ```java
 public interface SkillExecutor {
-  boolean canHandle(String message, boolean isInternalCall);
-  String execute(String message, boolean isInternalCall);
+  String skillId();           // Skill ID to match against message metadata
+  Message.Role requiredRole(); // Caller role required to invoke this skill
+  String execute(String message);
 }
 ```
 
-Each agent implements this interface. Implementations check the `isInternalCall` flag (not string prefixes) to decide response format.
+Each agent has one `SkillExecutor` per skill. `AgentExecutor` reads `skillId` from `message.metadata()` via `A2aMetadataKeys.SKILL_ID`, finds the matching executor, and enforces `requiredRole()` before calling `execute()`. No `canHandle()` needed — routing is declarative.
 
 **2. A2A Client Pattern** (agents calling other agents)
 
@@ -110,7 +113,8 @@ public class A2a*AgentClient {
 ```
 
 Key points:
-- Use `A2A.toAgentMessage(text)` and `A2A.toUserMessage(text)` SDK utilities (not verbose `Message.builder()`)
+- Build messages with `Message.builder().role(...).parts(...).metadata(Map.of(A2aMetadataKeys.SKILL_ID, skillId)).build()`
+- Do **not** use `A2A.toAgentMessage(text)` — it does not carry skill ID metadata
 - Cache `AgentCard` via `AtomicReference<AgentCard>` with synchronized double-check block
 - Always specify output mode: `List.of("text")`
 - Use Consumer callbacks (`BiConsumer<ClientEvent, AgentCard>`) to receive async `TaskEvent` results
@@ -180,7 +184,7 @@ Tools are defined with `@Tool` annotation, registered at ChatClient build time v
 public class OrderTool extends A2aTool {
   @Tool(description = "주문 취소 가능 여부 확인...")
   public String checkOrderCancellability(OrderCancellabilityRequest request) {
-    return sendRequest(request.orderNumber() + " 취소 가능 여부 확인");
+    return sendRequest("order_cancellability_check", request.orderNumber() + " 취소 가능 여부 확인");
   }
 }
 
@@ -213,7 +217,7 @@ public class ChatOrchestrator {
 - Tools use `@Tool` annotation (not `FunctionToolCallback.builder()`)
 - Tool-calling loop is automatic (`internalToolExecutionEnabled=true` by default)
 - Session memory is managed via `ChatMemory.CONVERSATION_ID` advisor parameter
-- `A2aTool` base class handles AgentCard resolution and `sendMessage()` via Consumer callbacks
+- `A2aTool.sendRequest(skillId, text)` builds a message with `A2aMetadataKeys.SKILL_ID` in metadata, then sends via `A2aTransport`
 
 ### Parallel Agent Coordination Example
 
@@ -221,7 +225,7 @@ public class ChatOrchestrator {
 
 ```java
 @Override
-public String execute(String userMessage, boolean isInternalCall) {
+public String execute(String message) {
   // Initiate parallel calls
   CompletableFuture<PaymentStatus> paymentFuture =
     CompletableFuture.supplyAsync(() -> paymentClient.getStatus(orderNumber));
@@ -250,22 +254,20 @@ public String execute(String userMessage, boolean isInternalCall) {
 Example:
 ```java
 /**
- * Skill executor for delivery tracking.
- *
- * For internal calls, returns only status.
- * For external calls, enriches with order info via Order Agent.
+ * Skill executor for delivery tracking queries.
+ * Handles the {@code track_delivery} skill. Only accessible to external user calls (ROLE_USER).
  */
 @Component
-public class DeliverySkillExecutor implements SkillExecutor {
+public class DeliveryTrackingSkillExecutor implements SkillExecutor {
+  @Override public String skillId() { return "track_delivery"; }
+  @Override public Message.Role requiredRole() { return Message.Role.ROLE_USER; }
+
   /**
-   * Handles delivery status queries by tracking number.
-   *
-   * @param message the tracking number (TRACK-xxx)
-   * @param isInternalCall true if called from another agent
-   * @return status line or formatted delivery info
+   * @param message the message text containing a tracking number (TRACK-xxx)
+   * @return a formatted delivery status response, optionally enriched with order info
    */
   @Override
-  public String execute(String message, boolean isInternalCall) { ... }
+  public String execute(String message) { ... }
 }
 ```
 
@@ -389,11 +391,14 @@ curl -X POST http://localhost:8080/chat \
 
 ## Best Practices (Established in This Project)
 
-1. **Standard A2A Pattern:** All agent-to-agent calls use `Message.Role.ROLE_AGENT` + identifier parsing, never string prefixes
-2. **Agent Card Caching:** Resolve agent cards lazily, cache via `AtomicReference<AgentCard>` with synchronized double-check block
-3. **Timeout Centralization:** All A2A client calls use `a2a.client.timeout-seconds` property
-4. **JavaDoc Standard:** All public APIs have English documentation (class, method, record level). Validate with `./gradlew javadoc`
-5. **Code Format Compliance:** All code must pass `./gradlew checkFormat` (Spring Java Format). Run `./gradlew format` to auto-fix
-6. **Internal Response Format:** Agents respond with structured key:value lines for internal calls
-7. **Error Handling:** Use typed A2A error classes (`InvalidParamsError`, `MethodNotFoundError`, `InvalidRequestError`, `JSONParseError`, `InternalError`) — not raw `A2AErrorCodes` constants. JSON-RPC error responses return HTTP 500 (`internalServerError()`), not HTTP 200. Wrap skill executor calls in try/catch, return `TaskStatus(TASK_STATE_FAILED)` on exception.
-8. **Session Memory:** Use ChatMemory advisor pattern for multi-turn context (not manual state)
+1. **Skill ID Routing:** All A2A messages carry `skillId` in `message.metadata()` via `A2aMetadataKeys.SKILL_ID`. `AgentExecutor` routes by skill ID — no `canHandle()` or message content inspection
+2. **Role-Based Access Control:** Each `SkillExecutor` declares `requiredRole()`. `AgentExecutor` enforces it before calling `execute()`. No `boolean isInternalCall` passed through layers
+3. **Behavior-Based Executor Naming:** Class names reflect what the executor does, not where it's called from (e.g., `DeliveryTrackingSkillExecutor`, not `DeliveryExternalSkillExecutor`)
+4. **A2A Message Building:** Use `Message.builder().role(...).parts(...).metadata(Map.of(A2aMetadataKeys.SKILL_ID, skillId)).build()`. Do **not** use `A2A.toAgentMessage()` — it omits skill ID metadata
+5. **Agent Card Caching:** Resolve agent cards lazily, cache via `AtomicReference<AgentCard>` with synchronized double-check block
+6. **Timeout Centralization:** All A2A client calls use `a2a.client.timeout-seconds` property
+7. **JavaDoc Standard:** All public APIs have English documentation (class, method, record level). Validate with `./gradlew javadoc`
+8. **Code Format Compliance:** All code must pass `./gradlew checkFormat` (Spring Java Format). Run `./gradlew format` to auto-fix
+9. **Internal Response Format:** Agents respond with structured key:value lines for ROLE_AGENT calls (e.g., `status:배송중`, `refundEligible:true`)
+10. **Error Handling:** Use typed A2A error classes (`InvalidParamsError`, `MethodNotFoundError`, `InvalidRequestError`, `JSONParseError`, `InternalError`) — not raw `A2AErrorCodes` constants. JSON-RPC error responses return HTTP 500 (`internalServerError()`), not HTTP 200. Wrap skill executor calls in try/catch, return `TaskStatus(TASK_STATE_FAILED)` on exception.
+11. **Session Memory:** Use ChatMemory advisor pattern for multi-turn context (not manual state)

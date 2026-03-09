@@ -2,37 +2,37 @@ package com.github.cokelee777.orderagentserver.executor;
 
 import com.github.cokelee777.orderagentserver.db.OrderDatabase;
 import com.github.cokelee777.orderagentserver.db.OrderDatabase.OrderInfo;
+import io.a2a.spec.Message;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * Skill executor for querying and listing orders by member ID.
  * <p>
- * This executor handles external user requests with the prefix "MEMBER-" followed by a
- * member ID, and returns a formatted list of all orders associated with that member.
+ * Handles the {@code order_list} skill. Only accessible to external user calls
+ * (ROLE_USER).
  * </p>
  */
 @Component
 public class OrderListSkillExecutor implements SkillExecutor {
 
-	private static final Pattern MEMBER_PREFIX = Pattern.compile("^MEMBER-(\\S+).*");
-
 	/**
-	 * Determines whether this executor can handle order list queries.
-	 * <p>
-	 * This executor handles external requests starting with "MEMBER-" prefix.
-	 * </p>
-	 * @param message the user message text
-	 * @param isInternalCall whether this is an internal agent-to-agent call
-	 * @return true if the message starts with "MEMBER-" and is not an internal call
+	 * Returns the skill ID handled by this executor.
+	 * @return {@code "order_list"}
 	 */
 	@Override
-	public boolean canHandle(String message, boolean isInternalCall) {
-		if (isInternalCall || message == null || message.isBlank())
-			return false;
-		return MEMBER_PREFIX.matcher(message.trim()).matches();
+	public String skillId() {
+		return "order_list";
+	}
+
+	/**
+	 * Returns the required caller role for this skill.
+	 * @return {@link Message.Role#ROLE_USER} — external calls only
+	 */
+	@Override
+	public Message.Role requiredRole() {
+		return Message.Role.ROLE_USER;
 	}
 
 	/**
@@ -41,12 +41,11 @@ public class OrderListSkillExecutor implements SkillExecutor {
 	 * Extracts the member ID from the message, queries the database, and returns a
 	 * formatted list of all orders for that member.
 	 * </p>
-	 * @param message the user message text containing "MEMBER-{memberId}"
-	 * @param isInternalCall whether this is an internal agent-to-agent call
+	 * @param message the message text containing "MEMBER-{memberId}"
 	 * @return a formatted string with all orders for the member, or an error message
 	 */
 	@Override
-	public String execute(String message, boolean isInternalCall) {
+	public String execute(String message) {
 		String memberId = extractMemberId(message.trim());
 		if (memberId == null || memberId.isBlank()) {
 			return "[조회 결과] 회원 ID를 확인할 수 없습니다.";
@@ -68,7 +67,7 @@ public class OrderListSkillExecutor implements SkillExecutor {
 	/**
 	 * Extracts the member ID from a message starting with "MEMBER-".
 	 * @param text the message text
-	 * @return the member ID, or null if the message does not start with "MEMBER-"
+	 * @return the member ID, or null if the message does not match
 	 */
 	private String extractMemberId(String text) {
 		if (!text.startsWith("MEMBER-"))

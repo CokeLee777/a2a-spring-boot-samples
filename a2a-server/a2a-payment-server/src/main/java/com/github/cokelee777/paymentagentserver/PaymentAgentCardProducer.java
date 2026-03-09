@@ -39,10 +39,10 @@ public class PaymentAgentCardProducer {
 			.defaultOutputModes(List.of("text"))
 			.skills(List.of(AgentSkill.builder()
 				.id("payment_status")
-				.name("결제/환불 상태 조회")
-				.description("주문번호 기준 결제 상태 및 환불 가능 여부를 조회합니다.")
+				.name("결제/환불 상태 조회 (내부)")
+				.description("주문번호 기준 결제 상태 및 환불 가능 여부를 조회합니다. 주문 에이전트의 내부 A2A 호출 전용입니다.")
 				.tags(List.of("payment", "refund", "order"))
-				.examples(List.of("ORD-1001 환불 가능 여부 확인"))
+				.examples(List.of("ORD-1001"))
 				.build()))
 			.build();
 	}

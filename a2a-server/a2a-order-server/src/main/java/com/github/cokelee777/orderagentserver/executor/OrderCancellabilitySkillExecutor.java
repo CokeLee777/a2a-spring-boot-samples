@@ -8,6 +8,7 @@ import com.github.cokelee777.orderagentserver.client.A2aPaymentAgentClient;
 import com.github.cokelee777.orderagentserver.client.A2aDeliveryAgentClient.DeliveryStatusResponse;
 import com.github.cokelee777.orderagentserver.client.A2aPaymentAgentClient.PaymentStatusResponse;
 import com.github.cokelee777.orderagentserver.db.OrderDatabase;
+import io.a2a.spec.Message;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -15,9 +16,9 @@ import org.springframework.stereotype.Component;
 /**
  * Skill executor for determining order cancellation eligibility.
  * <p>
- * This executor handles external user requests to check if an order can be cancelled. It
- * implements a parallel calling mechanism to query both the delivery and payment agents
- * concurrently, then combines their responses to determine cancellation eligibility.
+ * Handles the {@code order_cancellability_check} skill. Only accessible to external user
+ * calls (ROLE_USER). Implements a parallel calling mechanism to query both the delivery
+ * and payment agents concurrently.
  * </p>
  * <p>
  * An order is cancellable only if:
@@ -50,24 +51,21 @@ public class OrderCancellabilitySkillExecutor implements SkillExecutor {
 	}
 
 	/**
-	 * Determines whether this executor can handle cancellation eligibility queries.
-	 * <p>
-	 * This executor handles external requests containing an order number (ORD-xxx).
-	 * </p>
-	 * @param userMessage the user message text
-	 * @param isInternalCall whether this is an internal agent-to-agent call
-	 * @return true if the message contains "ORD-" prefix and is not an internal call
+	 * Returns the skill ID handled by this executor.
+	 * @return {@code "order_cancellability_check"}
 	 */
 	@Override
-	public boolean canHandle(String userMessage, boolean isInternalCall) {
-		if (isInternalCall)
-			return false;
-		for (String word : userMessage.split("\\s+")) {
-			if (word.startsWith("ORD-")) {
-				return true;
-			}
-		}
-		return false;
+	public String skillId() {
+		return "order_cancellability_check";
+	}
+
+	/**
+	 * Returns the required caller role for this skill.
+	 * @return {@link Message.Role#ROLE_USER} — external calls only
+	 */
+	@Override
+	public Message.Role requiredRole() {
+		return Message.Role.ROLE_USER;
 	}
 
 	/**
@@ -76,26 +74,18 @@ public class OrderCancellabilitySkillExecutor implements SkillExecutor {
 	 * This method:
 	 * </p>
 	 * <ol>
-	 * <li>Extracts the order number from the user message</li>
+	 * <li>Extracts the order number from the message</li>
 	 * <li>Looks up the order in the database</li>
-	 * <li>Initiates two parallel calls:
-	 * <ul>
-	 * <li>Calls the payment agent to check refund eligibility</li>
-	 * <li>Calls the delivery agent to check delivery status (if tracking number
-	 * exists)</li>
-	 * </ul>
-	 * </li>
-	 * <li>Waits for both calls to complete within the configured timeout period</li>
+	 * <li>Initiates two parallel calls to the payment and delivery agents</li>
+	 * <li>Waits for both calls to complete within the configured timeout</li>
 	 * <li>Combines the responses to determine overall cancellation eligibility</li>
-	 * <li>Returns a detailed report with the cancellation status and reasons</li>
 	 * </ol>
-	 * @param userMessage the user message text containing the order number (ORD-xxx)
-	 * @param isInternalCall whether this is an internal agent-to-agent call
+	 * @param userMessage the message text containing the order number (ORD-xxx)
 	 * @return a formatted report detailing the cancellation eligibility status and
 	 * reasons
 	 */
 	@Override
-	public String execute(String userMessage, boolean isInternalCall) {
+	public String execute(String userMessage) {
 		String orderNumber = extractOrderNumber(userMessage);
 		var orderOpt = OrderDatabase.findByOrderNumber(orderNumber);
 		if (orderOpt.isEmpty()) {
@@ -104,7 +94,6 @@ public class OrderCancellabilitySkillExecutor implements SkillExecutor {
 
 		var order = orderOpt.get();
 
-		// 배송 에이전트·결제 에이전트를 병렬로 호출
 		CompletableFuture<PaymentStatusResponse> paymentFuture = CompletableFuture
 			.supplyAsync(() -> paymentAgentClient.getPaymentStatus(orderNumber));
 		CompletableFuture<DeliveryStatusResponse> deliveryFuture = (order.trackingNumber() != null
@@ -147,7 +136,6 @@ public class OrderCancellabilitySkillExecutor implements SkillExecutor {
 			}
 
 			return result.toString();
-
 		}
 		catch (Exception e) {
 			log.error("에이전트 병렬 호출 중 오류 (orderNumber={}): {}", orderNumber, e.getMessage(), e);
@@ -157,13 +145,8 @@ public class OrderCancellabilitySkillExecutor implements SkillExecutor {
 
 	/**
 	 * Extracts the order number from a message.
-	 * <p>
-	 * Searches for a word starting with "ORD-" and returns it. If no such word is found,
-	 * returns the trimmed message.
-	 * </p>
 	 * @param text the message text
-	 * @return the extracted order number, or the trimmed text if no order number pattern
-	 * is found
+	 * @return the first word starting with "ORD-", or the trimmed text
 	 */
 	private String extractOrderNumber(String text) {
 		for (String word : text.split("\\s+")) {

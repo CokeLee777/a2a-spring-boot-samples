@@ -1,5 +1,6 @@
 package com.github.cokelee777.paymentagentserver;
 
+import com.github.cokelee777.a2a.common.metadata.A2aMetadataKeys;
 import com.github.cokelee777.a2a.common.util.TextExtractor;
 import com.github.cokelee777.paymentagentserver.executor.SkillExecutor;
 import io.a2a.server.agentexecution.AgentExecutor;
@@ -19,8 +20,9 @@ import java.util.Objects;
  * A2A AgentExecutor implementation for the payment agent.
  *
  * <p>
- * Determines whether the request is an internal agent call by checking the message role,
- * then routes to the appropriate {@link SkillExecutor}.
+ * Routes incoming requests to the appropriate {@link SkillExecutor} by reading the
+ * {@code skillId} from the message metadata. The caller's {@link Message.Role} is
+ * validated against each executor's {@link SkillExecutor#requiredRole()}.
  * </p>
  */
 @Slf4j
@@ -41,10 +43,9 @@ public class PaymentAgentExecutor implements AgentExecutor {
 		emitter.startWork();
 
 		Message message = Objects.requireNonNull(context.getMessage(), "message can not be null");
-		boolean isInternal = Message.Role.ROLE_AGENT.equals(message.role());
-		String text = TextExtractor.extractFromMessage(context.getMessage());
+		String text = TextExtractor.extractFromMessage(message);
 		try {
-			String result = routeToSkill(text, isInternal);
+			String result = routeToSkill(extractSkillId(message), text, message.role());
 			emitter.addArtifact(List.of(new TextPart(result)));
 			emitter.complete();
 		}
@@ -66,18 +67,38 @@ public class PaymentAgentExecutor implements AgentExecutor {
 	}
 
 	/**
-	 * Routes the message text to the appropriate skill executor.
-	 * @param text the message text extracted from the request
-	 * @param isInternal true if this is an internal agent-to-agent call
-	 * @return the result from the matched executor, or a fallback message
+	 * Routes the request to the matching skill executor by skill ID and role.
+	 * @param skillId the skill ID extracted from message metadata
+	 * @param text the message text
+	 * @param role the caller's A2A role
+	 * @return the execution result, or a fallback message if no executor matches
 	 */
-	private String routeToSkill(String text, boolean isInternal) {
+	private String routeToSkill(String skillId, String text, Message.Role role) {
+		if (skillId == null) {
+			return "결제 상태 조회는 주문번호(ORD-)를 포함해 주세요.";
+		}
 		for (SkillExecutor executor : skillExecutors) {
-			if (executor.canHandle(text, isInternal)) {
-				return executor.execute(text, isInternal);
+			if (executor.skillId().equals(skillId)) {
+				if (!executor.requiredRole().equals(role)) {
+					return "접근 권한이 없습니다.";
+				}
+				return executor.execute(text);
 			}
 		}
 		return "결제 상태 조회는 주문번호(ORD-)를 포함해 주세요.";
+	}
+
+	/**
+	 * Extracts the skill ID from message metadata.
+	 * @param message the incoming A2A message
+	 * @return the skill ID string, or {@code null} if not present
+	 */
+	private String extractSkillId(Message message) {
+		if (message.metadata() == null) {
+			return null;
+		}
+		Object val = message.metadata().get(A2aMetadataKeys.SKILL_ID);
+		return val instanceof String s ? s : null;
 	}
 
 }

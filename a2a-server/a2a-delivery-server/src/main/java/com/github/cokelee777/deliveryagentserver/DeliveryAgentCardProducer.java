@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -41,15 +40,23 @@ public class DeliveryAgentCardProducer {
 			.supportedInterfaces(List.of(new AgentInterface(TransportProtocol.JSONRPC.asString(), AGENT_URL)))
 			.version("1.0.0")
 			.capabilities(AgentCapabilities.builder().streaming(false).pushNotifications(false).build())
-			.defaultInputModes(Collections.singletonList("text"))
-			.defaultOutputModes(Collections.singletonList("text"))
-			.skills(List.of(AgentSkill.builder()
-				.id("track_delivery")
-				.name("배송 조회")
-				.description("운송장 번호로 현재 배송 상태를 조회합니다")
-				.tags(List.of("delivery", "tracking", "shipping"))
-				.examples(List.of("TRACK-1001 배송 조회해줘", "운송장번호 TRACK-2002 어디까지 왔어?", "TRACK-3003 배송 상태 알려줘"))
-				.build()))
+			.defaultInputModes(List.of("text"))
+			.defaultOutputModes(List.of("text"))
+			.skills(List.of(
+					AgentSkill.builder()
+						.id("track_delivery")
+						.name("배송 조회")
+						.description("운송장 번호로 현재 배송 상태를 조회합니다")
+						.tags(List.of("delivery", "tracking", "shipping"))
+						.examples(List.of("TRACK-1001 배송 조회해줘", "운송장번호 TRACK-2002 어디까지 왔어?", "TRACK-3003 배송 상태 알려줘"))
+						.build(),
+					AgentSkill.builder()
+						.id("delivery_status_internal")
+						.name("배송 상태 조회 (내부)")
+						.description("운송장 번호로 배송 상태를 조회합니다. 주문 에이전트의 내부 A2A 호출 전용입니다.")
+						.tags(List.of("delivery", "status", "internal"))
+						.examples(List.of("TRACK-1001"))
+						.build()))
 			.build();
 	}
 

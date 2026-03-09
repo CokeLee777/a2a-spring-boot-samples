@@ -57,6 +57,13 @@ public class OrderAgentCardProducer {
 						.tags(List.of("order", "cancellability", "check"))
 						.examples(
 								List.of("ORD-1001 취소 가능한지 알려줘", "주문번호 ORD-2002 취소할 수 있어?", "ORD-3003 주문 취소 가능 여부 확인해줘"))
+						.build(),
+					AgentSkill.builder()
+						.id("order_info_by_tracking")
+						.name("운송장 번호로 주문 정보 조회 (내부)")
+						.description("운송장 번호로 주문 정보를 조회합니다. 배송 에이전트의 내부 A2A 호출 전용입니다.")
+						.tags(List.of("order", "tracking", "internal"))
+						.examples(List.of("TRACK-1001"))
 						.build()))
 			.build();
 	}

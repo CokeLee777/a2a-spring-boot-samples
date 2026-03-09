@@ -1,11 +1,15 @@
 package com.github.cokelee777.orderagentserver.client;
 
+import com.github.cokelee777.a2a.common.metadata.A2aMetadataKeys;
 import com.github.cokelee777.a2a.common.transport.A2aTransport;
-import io.a2a.A2A;
+import io.a2a.spec.Message;
+import io.a2a.spec.TextPart;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -42,25 +46,29 @@ public class A2aDeliveryAgentClient {
 	 * Retrieves delivery status information for a shipment.
 	 *
 	 * <p>
-	 * Returns {@code null} if the agent call fails or the response cannot be parsed.
+	 * Sends an internal A2A request (ROLE_AGENT) with skill ID
+	 * {@code "delivery_status_internal"} to the delivery agent. Returns {@code null} if
+	 * the agent call fails or the response cannot be parsed.
 	 * </p>
 	 * @param trackingNumber the tracking number to query
 	 * @return a {@link DeliveryStatusResponse}, or {@code null} on failure
 	 */
 	public DeliveryStatusResponse getDeliveryStatus(String trackingNumber) {
-		return transport.send(A2A.toAgentMessage(trackingNumber), timeoutSeconds)
-			.filter(text -> !text.isBlank())
-			.map(text -> {
-				Matcher m = STATUS_LINE.matcher(text.trim());
-				if (m.find()) {
-					return new DeliveryStatusResponse(trackingNumber, m.group(1).trim(), null);
-				}
-				return null;
-			})
-			.orElseGet(() -> {
-				log.error("배송 에이전트 호출 실패 (trackingNumber={})", trackingNumber);
-				return null;
-			});
+		Message message = Message.builder()
+			.role(Message.Role.ROLE_AGENT)
+			.parts(List.of(new TextPart(trackingNumber)))
+			.metadata(Map.of(A2aMetadataKeys.SKILL_ID, "delivery_status_internal"))
+			.build();
+		return transport.send(message, timeoutSeconds).filter(text -> !text.isBlank()).map(text -> {
+			Matcher m = STATUS_LINE.matcher(text.trim());
+			if (m.find()) {
+				return new DeliveryStatusResponse(trackingNumber, m.group(1).trim(), null);
+			}
+			return null;
+		}).orElseGet(() -> {
+			log.error("배송 에이전트 호출 실패 (trackingNumber={})", trackingNumber);
+			return null;
+		});
 	}
 
 	/**

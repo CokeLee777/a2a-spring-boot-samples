@@ -50,10 +50,10 @@ Spring Boot samples demonstrating the **Agent-to-Agent (A2A) Protocol** for micr
 
 Agents communicate exclusively via **A2A Protocol** (JSON-RPC over HTTP):
 
-- **External calls** (Client → Agent): `Message.Role.ROLE_USER` with natural language
-- **Internal calls** (Agent → Agent): `Message.Role.ROLE_AGENT` with identifier (e.g., `TRACK-1001`, `ORD-1001`)
-  - Server reads `role` from JSON body to set `isInternalCall` boolean
-  - Different responses based on call type
+- **External calls** (Client → Agent): `Message.Role.ROLE_USER` with skill ID in message metadata
+- **Internal calls** (Agent → Agent): `Message.Role.ROLE_AGENT` with skill ID in message metadata
+  - Each `SkillExecutor` declares `skillId()` and `requiredRole()` — the server routes by skill ID and enforces role-based access control
+  - Skill ID is carried in `message.metadata()` under the key `"skillId"` (`A2aMetadataKeys.SKILL_ID`)
 
 **Supported JSON-RPC methods** (`POST /a2a`):
 

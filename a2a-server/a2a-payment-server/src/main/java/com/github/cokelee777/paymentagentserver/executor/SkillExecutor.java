@@ -1,28 +1,42 @@
 package com.github.cokelee777.paymentagentserver.executor;
 
+import io.a2a.spec.Message;
+
 /**
  * Interface for handling skill execution requests on the payment agent.
  * <p>
- * Implementations determine whether they can handle a given message and execute the
- * corresponding skill logic.
+ * Each implementation declares the skill ID it handles and the expected caller role,
+ * allowing the agent executor to route requests by skill ID without inspecting message
+ * content.
  * </p>
  */
 public interface SkillExecutor {
 
 	/**
-	 * Determines whether this executor can handle the given message.
-	 * @param message the user message text
-	 * @param isInternalCall whether this is an internal agent-to-agent call
-	 * @return true if this executor can handle the message, false otherwise
+	 * Returns the skill ID this executor handles.
+	 * <p>
+	 * Must match the {@code id} declared in the agent's {@code AgentCard} skills list.
+	 * </p>
+	 * @return the skill ID string (e.g., {@code "payment_status"})
 	 */
-	boolean canHandle(String message, boolean isInternalCall);
+	String skillId();
 
 	/**
-	 * Executes the skill logic for the given message.
-	 * @param message the user message text
-	 * @param isInternalCall whether this is an internal agent-to-agent call
+	 * Returns the A2A caller role required to invoke this skill.
+	 * <p>
+	 * Used by the agent executor to enforce access control: requests with a different
+	 * role are rejected without invoking {@link #execute(String)}.
+	 * </p>
+	 * @return {@link Message.Role#ROLE_AGENT} for internal skills,
+	 * {@link Message.Role#ROLE_USER} for external skills
+	 */
+	Message.Role requiredRole();
+
+	/**
+	 * Executes the skill logic for the given message text.
+	 * @param message the message text extracted from the A2A request
 	 * @return the result of the skill execution
 	 */
-	String execute(String message, boolean isInternalCall);
+	String execute(String message);
 
 }
