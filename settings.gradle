@@ -1,5 +1,6 @@
 rootProject.name = 'a2a-spring-boot-samples'
 
+include 'a2a-common'
 include 'a2a-client'
 include 'a2a-spring-boot-server'
 include 'a2a-server:a2a-order-server'

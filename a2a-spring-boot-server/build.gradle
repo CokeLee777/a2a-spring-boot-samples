@@ -4,6 +4,7 @@ bootJar.enabled = false
 jar.enabled = true
 
 dependencies {
+    api project(':a2a-common')
     api 'org.springframework.boot:spring-boot-starter-web'
     api 'io.github.a2asdk:a2a-java-sdk-server-common'
     api 'io.github.a2asdk:a2a-java-sdk-jsonrpc-common'

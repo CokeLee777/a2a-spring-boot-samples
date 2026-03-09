@@ -1,6 +1,6 @@
 package com.github.cokelee777.orderagentserver;
 
-import com.github.cokelee777.a2a.server.utils.MessageUtil;
+import com.github.cokelee777.a2a.common.util.TextExtractor;
 import com.github.cokelee777.orderagentserver.executor.SkillExecutor;
 import io.a2a.server.agentexecution.AgentExecutor;
 import io.a2a.server.agentexecution.RequestContext;
@@ -50,7 +50,7 @@ public class OrderAgentExecutor implements AgentExecutor {
 
 		Message message = Objects.requireNonNull(context.getMessage(), "message can not be null");
 		boolean isInternal = Message.Role.ROLE_AGENT.equals(message.role());
-		String text = MessageUtil.extractTextFromMessage(context.getMessage());
+		String text = TextExtractor.extractFromMessage(context.getMessage());
 		try {
 			String result = routeToSkill(text, isInternal);
 			emitter.addArtifact(List.of(new TextPart(result)));

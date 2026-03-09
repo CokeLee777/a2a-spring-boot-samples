@@ -10,10 +10,10 @@ import io.a2a.client.http.A2AHttpClient;
 import io.a2a.client.http.A2AHttpClientFactory;
 import io.a2a.client.transport.jsonrpc.JSONRPCTransport;
 import io.a2a.client.transport.jsonrpc.JSONRPCTransportConfig;
+import com.github.cokelee777.a2a.common.util.TextExtractor;
 import io.a2a.spec.AgentCard;
 import io.a2a.spec.Task;
 import io.a2a.spec.TaskState;
-import io.a2a.spec.TextPart;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 
@@ -91,15 +91,7 @@ public abstract class A2aTool {
 						resultFuture.complete("처리 중 오류가 발생했습니다.");
 						return;
 					}
-					StringBuilder sb = new StringBuilder();
-					if (task.artifacts() != null) {
-						task.artifacts().forEach(artifact -> artifact.parts().forEach(part -> {
-							if (part instanceof TextPart textPart) {
-								sb.append(textPart.text());
-							}
-						}));
-					}
-					resultFuture.complete(sb.toString());
+					resultFuture.complete(TextExtractor.extractFromTask(task));
 				}
 			});
 			Consumer<Throwable> errorHandler = resultFuture::completeExceptionally;

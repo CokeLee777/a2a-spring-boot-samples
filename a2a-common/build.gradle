@@ -1,0 +1,7 @@
+apply plugin: 'java-library'
+bootJar.enabled = false
+jar.enabled = true
+
+dependencies {
+    api 'io.github.a2asdk:a2a-java-sdk-client'
+}

@@ -17,6 +17,8 @@ public record ChatResponse(String sessionId, String response) {
 	/**
 	 * Compact constructor that validates both {@code sessionId} and {@code response} are
 	 * not blank.
+	 * @param sessionId the session ID; must not be blank
+	 * @param response the response message; must not be blank
 	 * @throws IllegalArgumentException if sessionId or response is blank
 	 */
 	public ChatResponse {

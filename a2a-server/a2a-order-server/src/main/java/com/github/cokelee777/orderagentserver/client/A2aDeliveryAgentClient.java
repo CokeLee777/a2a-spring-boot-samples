@@ -10,6 +10,7 @@ import io.a2a.client.http.A2AHttpClient;
 import io.a2a.client.http.A2AHttpClientFactory;
 import io.a2a.client.transport.jsonrpc.JSONRPCTransport;
 import io.a2a.client.transport.jsonrpc.JSONRPCTransportConfig;
+import com.github.cokelee777.a2a.common.util.TextExtractor;
 import io.a2a.spec.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -94,15 +95,7 @@ public class A2aDeliveryAgentClient {
 						resultFuture.complete(null);
 						return;
 					}
-					StringBuilder sb = new StringBuilder();
-					if (task.artifacts() != null) {
-						task.artifacts().forEach(artifact -> artifact.parts().forEach(part -> {
-							if (part instanceof TextPart textPart) {
-								sb.append(textPart.text());
-							}
-						}));
-					}
-					resultFuture.complete(sb.toString());
+					resultFuture.complete(TextExtractor.extractFromTask(task));
 				}
 			});
 

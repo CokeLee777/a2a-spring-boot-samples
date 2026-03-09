@@ -23,6 +23,9 @@ public record ChatRequest(String sessionId, @NotBlank(message = "memberId must n
 	/**
 	 * Compact constructor that initializes {@code sessionId} with a new UUID if not
 	 * provided.
+	 * @param sessionId the session ID; a new UUID is generated if null
+	 * @param memberId the member ID of the user sending the message
+	 * @param message the message content
 	 */
 	public ChatRequest {
 		sessionId = Objects.requireNonNullElse(sessionId, UUID.randomUUID().toString());
