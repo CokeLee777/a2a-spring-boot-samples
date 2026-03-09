@@ -2,7 +2,7 @@ package com.github.cokelee777.orderagentserver;
 
 import com.github.cokelee777.a2a.common.metadata.A2aMetadataKeys;
 import com.github.cokelee777.a2a.common.util.TextExtractor;
-import com.github.cokelee777.orderagentserver.executor.SkillExecutor;
+import com.github.cokelee777.a2a.server.common.executor.SkillExecutor;
 import io.a2a.server.agentexecution.AgentExecutor;
 import io.a2a.server.agentexecution.RequestContext;
 import io.a2a.server.tasks.AgentEmitter;

@@ -1,5 +1,6 @@
 package com.github.cokelee777.orderagentserver.executor;
 
+import com.github.cokelee777.a2a.server.common.executor.SkillExecutor;
 import com.github.cokelee777.orderagentserver.client.A2aDeliveryAgentClient;
 import com.github.cokelee777.orderagentserver.client.A2aDeliveryAgentClient.DeliveryStatusResponse;
 import com.github.cokelee777.orderagentserver.client.A2aPaymentAgentClient;

@@ -1,5 +1,6 @@
 package com.github.cokelee777.orderagentserver.executor;
 
+import com.github.cokelee777.a2a.server.common.executor.SkillExecutor;
 import com.github.cokelee777.orderagentserver.db.OrderDatabase;
 import io.a2a.spec.Message;
 import org.springframework.stereotype.Component;

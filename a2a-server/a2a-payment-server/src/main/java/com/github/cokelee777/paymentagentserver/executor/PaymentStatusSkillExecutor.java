@@ -1,5 +1,6 @@
 package com.github.cokelee777.paymentagentserver.executor;
 
+import com.github.cokelee777.a2a.server.common.executor.SkillExecutor;
 import com.github.cokelee777.paymentagentserver.db.PaymentDatabase;
 import io.a2a.spec.Message;
 import org.springframework.stereotype.Component;
