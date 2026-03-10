@@ -119,7 +119,7 @@ Key points:
 - Always specify output mode: `List.of("text")`
 - Use Consumer callbacks (`BiConsumer<ClientEvent, AgentCard>`) to receive async `TaskEvent` results
 
-**3. A2AJsonRpcController Pattern** (`a2a-spring-boot-server`)
+**3. A2AJsonRpcController Pattern** (`a2a-spring-boot-autoconfigure`)
 
 The shared controller uses pattern matching for dispatch and Protobuf for serialization:
 

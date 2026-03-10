@@ -1,4 +1,4 @@
 dependencies {
-    implementation project(':a2a-spring-boot-server')
+    implementation project(':a2a-spring-boot-autoconfigure')
     implementation 'io.github.a2asdk:a2a-java-sdk-client'
 }
