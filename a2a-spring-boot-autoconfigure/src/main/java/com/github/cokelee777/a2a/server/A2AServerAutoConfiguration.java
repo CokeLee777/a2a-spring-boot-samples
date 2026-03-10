@@ -199,7 +199,7 @@ public class A2AServerAutoConfiguration {
 	 * @param props the server configuration properties
 	 * @return a bounded {@link ThreadPoolExecutor} with caller-runs overflow policy
 	 */
-	@Bean(destroyMethod = "shutdown")
+	@Bean
 	public ExecutorService agentExecutorService(A2AServerProperties props) {
 		return new ThreadPoolExecutor(props.executorCorePoolSize(), props.executorMaxPoolSize(), 60L, TimeUnit.SECONDS,
 				new LinkedBlockingQueue<>(props.executorQueueCapacity()), new ThreadPoolExecutor.CallerRunsPolicy());
@@ -214,7 +214,7 @@ public class A2AServerAutoConfiguration {
 	 * @param props the server configuration properties
 	 * @return a bounded {@link ThreadPoolExecutor} with caller-runs overflow policy
 	 */
-	@Bean(name = "eventConsumerExecutorService", destroyMethod = "shutdown")
+	@Bean
 	public ExecutorService eventConsumerExecutorService(A2AServerProperties props) {
 		return new ThreadPoolExecutor(props.executorCorePoolSize(), props.executorMaxPoolSize(), 60L, TimeUnit.SECONDS,
 				new LinkedBlockingQueue<>(props.executorQueueCapacity()), new ThreadPoolExecutor.CallerRunsPolicy());
